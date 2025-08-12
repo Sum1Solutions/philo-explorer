@@ -20,6 +20,7 @@ type Tradition = {
   name: string;
   family: "Watts" | "Philosophy" | "Eastern" | "Abrahamic" | "Classical" | "Modern";
   color: string; // tailwind color token (used as a class suffix)
+  firstYear: number; // BCE negative, CE positive (e.g., -1200 = 1200 BCE)
   overview: Record<RowKey, string>;
   deepDive?: {
     keyIdeas?: string[];
@@ -42,8 +43,9 @@ const DATA: Tradition[] = [
     name: "Alan Watts",
     family: "Watts",
     color: "violet",
+    firstYear: 1957,
     overview: {
-      reality: "Lila (cosmic play); reality is Self in endless forms; opposites are complementary.",
+      reality: "Reality is a single living process where apparent opposites depend on and define each other; the world shows up as playful, interdependent patterns in one field of experience.",
       self: "Ego is a temporary mask; deeper Self as Atman = Brahman (also framed with anatta as no fixed self).",
       problem: "Treating the play as a puzzle to be solved; clinging to control.",
       response: "Let go, laugh, participate; embrace irreducible ‘rascality’.",
@@ -70,6 +72,7 @@ const DATA: Tradition[] = [
     name: "Camus / Absurdism",
     family: "Modern",
     color: "slate",
+    firstYear: 1942,
     overview: {
       reality: "Universe is indifferent; no inherent meaning.",
       self: "Separate conscious being without cosmic essence; identity is self-authored.",
@@ -92,6 +95,7 @@ const DATA: Tradition[] = [
     name: "Buddhism",
     family: "Eastern",
     color: "emerald",
+    firstYear: -480,
     overview: {
       reality: "Impermanent (anicca), interdependent; no inherent self (anatta).",
       self: "No permanent self; five aggregates in flux.",
@@ -114,6 +118,7 @@ const DATA: Tradition[] = [
     name: "Judaism",
     family: "Abrahamic",
     color: "amber",
+    firstYear: -1200,
     overview: {
       reality: "Created by God; good yet morally demanding; covenantal history.",
       self: "A soul with free will; Yetzer Tov / Yetzer Hara inclinations.",
@@ -132,6 +137,7 @@ const DATA: Tradition[] = [
     name: "Christianity",
     family: "Abrahamic",
     color: "rose",
+    firstYear: 30,
     overview: {
       reality: "Created by God; marred by sin; redeemed in Christ.",
       self: "An immortal soul created by God; fallen but redeemable.",
@@ -150,6 +156,7 @@ const DATA: Tradition[] = [
     name: "Islam",
     family: "Abrahamic",
     color: "teal",
+    firstYear: 610,
     overview: {
       reality: "Created by Allah; perfectly ordered; life as a test.",
       self: "An immortal soul responsible before Allah.",
@@ -168,6 +175,7 @@ const DATA: Tradition[] = [
     name: "Hinduism (Advaita Vedānta)",
     family: "Eastern",
     color: "orange",
+    firstYear: -800,
     overview: {
       reality: "All reality is Brahman; world as divine play (lila).",
       self: "True Self (Atman) is identical to Brahman.",
@@ -186,6 +194,7 @@ const DATA: Tradition[] = [
     name: "Taoism",
     family: "Eastern",
     color: "lime",
+    firstYear: -500,
     overview: {
       reality: "Tao as the source and flow; polarity as complementarity.",
       self: "A natural expression of the Tao; no rigid essence.",
@@ -204,6 +213,7 @@ const DATA: Tradition[] = [
     name: "Stoicism",
     family: "Classical",
     color: "cyan",
+    firstYear: -300,
     overview: {
       reality: "Cosmos ordered by Logos; fate and nature interwoven.",
       self: "Rational agent capable of virtue.",
@@ -222,6 +232,7 @@ const DATA: Tradition[] = [
     name: "Existentialism",
     family: "Modern",
     color: "fuchsia",
+    firstYear: 1850,
     overview: {
       reality: "No inherent meaning; existence precedes essence.",
       self: "Defined by choices and actions (authenticity).",
@@ -265,11 +276,33 @@ function Row({ label, text }: { label: string; text: string }) {
 export default function Explorer() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<Tradition | null>(null);
+  const [cutoffYear, setCutoffYear] = useState<number | null>(null);
+
+  // Timeline data sorted by first introduction
+  const timeline = useMemo(() => {
+    return [...DATA].sort((a, b) => a.firstYear - b.firstYear);
+  }, []);
+
+  const currentStepIndex = useMemo(() => {
+    if (cutoffYear == null) return -1;
+    const idx = timeline.findIndex((t) => t.firstYear === cutoffYear);
+    return idx;
+  }, [cutoffYear, timeline]);
+
+  function formatYear(y: number) {
+    return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return DATA;
-    return DATA.filter((t) =>
+    let base = DATA;
+    if (cutoffYear != null) {
+      base = base.filter((t) => t.firstYear <= cutoffYear);
+    }
+    // Order by first introduction year ascending
+    base = [...base].sort((a, b) => a.firstYear - b.firstYear);
+    if (!q) return base;
+    return base.filter((t) =>
       [
         t.name,
         t.family,
@@ -281,7 +314,7 @@ export default function Explorer() {
         .toLowerCase()
         .includes(q)
     );
-  }, [query]);
+  }, [query, cutoffYear]);
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-b from-background to-muted/30 p-6 md:p-10">
@@ -308,6 +341,51 @@ export default function Explorer() {
             </div>
           </div>
         </div>
+
+        {/* Timeline */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-medium">Timeline of first introduction</div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const nextIdx = currentStepIndex + 1;
+                  if (nextIdx < timeline.length) setCutoffYear(timeline[nextIdx].firstYear);
+                  else setCutoffYear(timeline[timeline.length - 1].firstYear);
+                }}
+              >
+                Next
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setCutoffYear(null)}>
+                Reset
+              </Button>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="h-1 w-full rounded bg-foreground/10" />
+            <div className="mt-2 overflow-x-auto">
+              <div className="min-w-full flex items-center gap-6 pr-4">
+                {timeline.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setCutoffYear(t.firstYear)}
+                    className="group flex flex-col items-center gap-1"
+                    title={`${t.name} • ${formatYear(t.firstYear)}`}
+                  >
+                    <div className={`h-4 w-4 rounded-full border-2 transition-transform border-${t.color}-900 bg-${t.color}-100 group-hover:scale-110`} />
+                    <div className="text-xs font-medium">{t.name}</div>
+                    <div className="text-[10px] text-muted-foreground">{formatYear(t.firstYear)}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {cutoffYear != null && (
+            <div className="mt-3 text-xs text-muted-foreground">Showing traditions up to {formatYear(cutoffYear)}</div>
+          )}
+        </Card>
 
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

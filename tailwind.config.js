@@ -16,7 +16,7 @@ export default {
   },
   safelist: [
     {
-      pattern: /(bg|text)-(violet|slate|emerald|amber|rose|teal|orange|lime|cyan|fuchsia)-(100|900)/,
+      pattern: /(bg|text|border)-(violet|slate|emerald|amber|rose|teal|orange|lime|cyan|fuchsia)-(100|900)/,
     },
   ],
   plugins: [],
