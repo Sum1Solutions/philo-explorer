@@ -276,6 +276,7 @@ export default function Explorer() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<Tradition | null>(null);
   const [cutoffYear, setCutoffYear] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Timeline data sorted by first introduction
   const timeline = useMemo(() => {
@@ -283,10 +284,9 @@ export default function Explorer() {
   }, []);
 
   const currentStepIndex = useMemo(() => {
-    if (cutoffYear == null) return -1;
-    const idx = timeline.findIndex((t) => t.firstYear === cutoffYear);
-    return idx;
-  }, [cutoffYear, timeline]);
+    if (selectedId == null) return -1;
+    return timeline.findIndex((t) => t.id === selectedId);
+  }, [selectedId, timeline]);
 
   function formatYear(y: number) {
     return y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`;
@@ -295,7 +295,10 @@ export default function Explorer() {
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
     let base = DATA;
-    if (cutoffYear != null) {
+    // If a timeline selection is active, show only that tradition
+    if (selectedId) {
+      base = base.filter((t) => t.id === selectedId);
+    } else if (cutoffYear != null) {
       base = base.filter((t) => t.firstYear <= cutoffYear);
     }
     // Order by first introduction year ascending
@@ -313,7 +316,7 @@ export default function Explorer() {
         .toLowerCase()
         .includes(q)
     );
-  }, [query, cutoffYear]);
+  }, [query, cutoffYear, selectedId]);
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-b from-background to-muted/30 p-6 md:p-10">
@@ -350,14 +353,15 @@ export default function Explorer() {
                 size="sm"
                 variant="secondary"
                 onClick={() => {
-                  const nextIdx = currentStepIndex + 1;
-                  if (nextIdx < timeline.length) setCutoffYear(timeline[nextIdx].firstYear);
-                  else setCutoffYear(timeline[timeline.length - 1].firstYear);
+                  const startIdx = currentStepIndex === -1 ? 0 : currentStepIndex + 1;
+                  const nextIdx = Math.min(startIdx, timeline.length - 1);
+                  setSelectedId(timeline[nextIdx].id);
+                  setCutoffYear(null);
                 }}
               >
                 Next
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setCutoffYear(null)}>
+              <Button size="sm" variant="ghost" onClick={() => { setSelectedId(null); setCutoffYear(null); }}>
                 Reset
               </Button>
             </div>
@@ -369,7 +373,7 @@ export default function Explorer() {
                 {timeline.map((t) => (
                   <button
                     key={t.id}
-                    onClick={() => setCutoffYear(t.firstYear)}
+                    onClick={() => { setSelectedId(t.id); setCutoffYear(null); }}
                     className="group flex flex-col items-center gap-1"
                     title={`${t.name} • ${formatYear(t.firstYear)}`}
                   >
@@ -381,7 +385,12 @@ export default function Explorer() {
               </div>
             </div>
           </div>
-          {cutoffYear != null && (
+          {selectedId && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              Showing: {timeline.find((t) => t.id === selectedId)?.name} ({formatYear(timeline.find((t) => t.id === selectedId)!.firstYear)})
+            </div>
+          )}
+          {!selectedId && cutoffYear != null && (
             <div className="mt-3 text-xs text-muted-foreground">Showing traditions up to {formatYear(cutoffYear)}</div>
           )}
         </Card>
