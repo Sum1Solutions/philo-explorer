@@ -7,13 +7,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Info, Search, ExternalLink, ChevronRight, BookOpen, Layers } from "lucide-react";
+import { Info, Search, ExternalLink, ChevronRight, BookOpen, Layers, X, ArrowLeft } from "lucide-react";
 
 // ------------------------
 // Data Model
 // ------------------------
 
 type RowKey = "reality" | "self" | "problem" | "response" | "aim";
+
+type ViewMode = 'grid' | 'comparison';
+
+interface ComparisonState {
+  mode: ViewMode;
+  aspect: RowKey | null;
+}
 
 type Tradition = {
   id: string;
@@ -277,6 +284,10 @@ export default function Explorer() {
   const [active, setActive] = useState<Tradition | null>(null);
   const [cutoffYear, setCutoffYear] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [comparison, setComparison] = useState<ComparisonState>({
+    mode: 'grid',
+    aspect: null
+  });
 
   // Timeline data sorted by first introduction
   const timeline = useMemo(() => {
@@ -317,6 +328,110 @@ export default function Explorer() {
         .includes(q)
     );
   }, [query, cutoffYear, selectedId]);
+
+  // Toggle between grid and comparison views
+  const toggleComparison = (aspect: RowKey) => {
+    if (comparison.mode === 'comparison' && comparison.aspect === aspect) {
+      setComparison({ mode: 'grid', aspect: null });
+    } else {
+      setComparison({ mode: 'comparison', aspect });
+    }
+  };
+
+  // Define a type that extends Tradition with safe defaults
+  type SafeTradition = Omit<Tradition, 'deepDive' | 'references'> & {
+    deepDive: {
+      keyIdeas: string[];
+      notes: string;
+    };
+    references: Array<{ title: string; url: string }>;
+  }
+
+  const getActiveTradition = (): SafeTradition | null => {
+    if (!active) return null;
+    
+    return {
+      ...active,
+      deepDive: {
+        keyIdeas: active.deepDive?.keyIdeas || [],
+        notes: active.deepDive?.notes || ''
+      },
+      references: active.references || []
+    };
+  };
+
+  const activeTradition = getActiveTradition();
+
+  // Close comparison view
+  const closeComparison = () => {
+    setComparison({ mode: 'grid', aspect: null });
+  };
+
+  // Comparison view component
+  const ComparisonView = ({ aspect }: { aspect: RowKey }) => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={closeComparison}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to all aspects
+        </Button>
+        <h2 className="text-2xl font-semibold text-center">
+          {ROW_LABELS[aspect]} Across Traditions
+        </h2>
+        <div className="w-24"></div> {/* Spacer for alignment */}
+      </div>
+      
+      <div className="space-y-6">
+        {filtered.map((tradition) => (
+          <Card key={tradition.id} className="relative overflow-hidden">
+            <div className={`absolute left-0 top-0 bottom-0 w-1 bg-${tradition.color}-500`} />
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">{tradition.name}</CardTitle>
+                <div className={`px-2 py-0.5 rounded-full text-xs font-medium bg-${tradition.color}-100 text-${tradition.color}-900 border border-${tradition.color}-200`}>
+                  {tradition.family}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none">
+                <p className="text-foreground/90">{tradition.overview[aspect]}</p>
+              </div>
+              <div className="mt-4 flex items-center text-xs text-muted-foreground">
+                <span>First appeared: {formatYear(tradition.firstYear)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Row component with click handler for comparison
+  const Row = ({ label, text, aspect }: { label: string; text: string; aspect: RowKey }) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-muted-foreground">{label}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleComparison(aspect);
+          }}
+        >
+          Compare all
+        </Button>
+      </div>
+      <p className="text-sm leading-snug">{text}</p>
+    </div>
+  );
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-b from-background to-muted/30 p-6 md:p-10">
@@ -395,7 +510,10 @@ export default function Explorer() {
           )}
         </Card>
 
-        {/* Grid */}
+        {/* Main Content */}
+      {comparison.mode === 'comparison' ? (
+        <ComparisonView aspect={comparison.aspect!} />
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((t) => (
             <Card key={t.id} className="hover:shadow-lg transition-shadow">
@@ -409,32 +527,39 @@ export default function Explorer() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Row label={ROW_LABELS.reality} text={t.overview.reality} />
-                <Separator />
-                <Row label={ROW_LABELS.self} text={t.overview.self} />
-                <Separator />
-                <Row label={ROW_LABELS.problem} text={t.overview.problem} />
-                <Separator />
-                <Row label={ROW_LABELS.response} text={t.overview.response} />
-                <Separator />
-                <Row label={ROW_LABELS.aim} text={t.overview.aim} />
+                {Object.entries(ROW_LABELS).map(([key, label]) => (
+                  <div key={key}>
+                    <Row 
+                      label={label} 
+                      text={t.overview[key as RowKey]} 
+                      aspect={key as RowKey} 
+                    />
+                    {key !== 'aim' && <Separator />}
+                  </div>
+                ))}
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        <p className="text-xs text-muted-foreground flex items-center gap-1"><Info className="w-4 h-4" />References are external links to respected sources. I can add or swap any source list you prefer (SEP, IEP, Oxford, Cambridge, Yale, etc.).</p>
+          </div>
+        )}
       </div>
 
+      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-6">
+        <Info className="w-4 h-4" />
+        References are external links to respected sources. I can add or swap any source list you prefer (SEP, IEP, Oxford, Cambridge, Yale, etc.).
+      </p>
+
       {/* Drilldown Dialog */}
-      <Dialog open={!!active} onOpenChange={(open) => !open && setActive(null)}>
+      <Dialog open={!!activeTradition} onOpenChange={(open) => !open && setActive(null)}>
         <DialogContent className="max-w-3xl">
-          {active && (
+          {activeTradition && (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3">
-                  <Badge className={`rounded-full px-2 py-1 text-xs bg-${active.color}-100 text-${active.color}-900`}>{active.family}</Badge>
-                  {active.name}
+                  <Badge className={`rounded-full px-2 py-1 text-xs bg-${activeTradition.color}-100 text-${activeTradition.color}-900`}>
+                    {activeTradition.family}
+                  </Badge>
+                  {activeTradition.name}
                 </DialogTitle>
                 <DialogDescription>
                   Deeper context, key ideas, and curated references.
@@ -452,51 +577,51 @@ export default function Explorer() {
                       <CardHeader>
                         <CardTitle className="text-sm">{ROW_LABELS.reality}</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-sm leading-relaxed">{active.overview.reality}</CardContent>
+                      <CardContent className="text-sm leading-relaxed">{activeTradition.overview.reality}</CardContent>
                     </Card>
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm">{ROW_LABELS.self}</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-sm leading-relaxed">{active.overview.self}</CardContent>
+                      <CardContent className="text-sm leading-relaxed">{activeTradition.overview.self}</CardContent>
                     </Card>
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm">{ROW_LABELS.problem}</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-sm leading-relaxed">{active.overview.problem}</CardContent>
+                      <CardContent className="text-sm leading-relaxed">{activeTradition.overview.problem}</CardContent>
                     </Card>
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-sm">{ROW_LABELS.response}</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-sm leading-relaxed">{active.overview.response}</CardContent>
+                      <CardContent className="text-sm leading-relaxed">{activeTradition.overview.response}</CardContent>
                     </Card>
                     <Card className="md:col-span-2">
                       <CardHeader>
                         <CardTitle className="text-sm">{ROW_LABELS.aim}</CardTitle>
                       </CardHeader>
-                      <CardContent className="text-sm leading-relaxed">{active.overview.aim}</CardContent>
+                      <CardContent className="text-sm leading-relaxed">{activeTradition.overview.aim}</CardContent>
                     </Card>
                   </div>
                 </TabsContent>
                 <TabsContent value="ideas">
                   <ScrollArea className="h-72 mt-4 pr-4">
                     <div className="space-y-3">
-                      {active.deepDive?.keyIdeas?.length ? (
-                        active.deepDive.keyIdeas.map((k, i) => (
+                      {activeTradition.deepDive.keyIdeas.length > 0 ? (
+                        activeTradition.deepDive.keyIdeas.map((idea: string, i: number) => (
                           <div key={i} className="flex items-start gap-3">
                             <BookOpen className="w-4 h-4 mt-1" />
-                            <p className="text-sm leading-relaxed">{k}</p>
+                            <p className="text-sm leading-relaxed">{idea}</p>
                           </div>
                         ))
                       ) : (
                         <p className="text-sm text-muted-foreground">Key ideas forthcoming.</p>
                       )}
-                      {active.deepDive?.notes && (
+                      {activeTradition.deepDive.notes && (
                         <>
                           <Separator className="my-2" />
-                          <p className="text-sm text-muted-foreground">{active.deepDive.notes}</p>
+                          <p className="text-sm text-muted-foreground">{activeTradition.deepDive.notes}</p>
                         </>
                       )}
                     </div>
@@ -505,12 +630,24 @@ export default function Explorer() {
                 <TabsContent value="refs">
                   <ScrollArea className="h-72 mt-4 pr-4">
                     <div className="space-y-2">
-                      {active.references.map((r, i) => (
-                        <a key={i} href={r.url} target="_blank" rel="noreferrer" className="group flex items-center justify-between border rounded-xl p-3 hover:bg-muted transition-colors">
-                          <div className="text-sm font-medium group-hover:underline">{r.title}</div>
-                          <ExternalLink className="w-4 h-4 opacity-70" />
-                        </a>
-                      ))}
+                      {activeTradition.references.length > 0 ? (
+                        activeTradition.references.map((r, i) => (
+                          <a 
+                            key={i} 
+                            href={r.url} 
+                            target="_blank" 
+                            rel="noreferrer" 
+                            className="group flex items-center justify-between border rounded-xl p-3 hover:bg-muted transition-colors"
+                          >
+                            <div className="text-sm font-medium group-hover:underline">
+                              {r.title}
+                            </div>
+                            <ExternalLink className="w-4 h-4 opacity-70" />
+                          </a>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No references available.</p>
+                      )}
                     </div>
                   </ScrollArea>
                 </TabsContent>
