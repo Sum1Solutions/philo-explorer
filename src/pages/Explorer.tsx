@@ -53,12 +53,11 @@ const DATA: Tradition[] = [
     },
     deepDive: {
       keyIdeas: [
-        "Lila: the ‘cosmic play’.",
-        "Masks of the ego vs the larger Self.",
-        "Bridging Advaita Vedānta, Zen, and Taoism.",
+        "Nonduality (not-two) across traditions.",
+        "Opposites as interdependent; a playful framing of reality.",
+        "The self as a social construct; the deeper Self is not the narrative ego.",
       ],
-      notes:
-        "Watts popularizes nondual and Taoist ideas for Western audiences, emphasizing immediacy and play over moralism.",
+      notes: "Popularizer synthesizing Hinduism, Buddhism, Taoism for Western audiences.",
     },
     references: [
       { title: "Alan Watts Organization", url: "https://alanwatts.org/" },
@@ -177,7 +176,7 @@ const DATA: Tradition[] = [
     color: "orange",
     firstYear: -800,
     overview: {
-      reality: "All reality is Brahman; world as divine play (lila).",
+      reality: "All reality is Brahman; the world as divine play.",
       self: "True Self (Atman) is identical to Brahman.",
       problem: "Avidya (ignorance) and attachment to māyā (appearance).",
       response: "Paths of jñāna, bhakti, karma, rāja yoga to realize unity.",
