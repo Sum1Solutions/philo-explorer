@@ -20,3 +20,12 @@ body {
   background-color: rgb(var(--background));
   color: rgb(var(--foreground));
 }
+
+/* Ensure tooltips and popovers appear above all content */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+[data-tooltip-content] {
+  z-index: 9999 !important;
+}

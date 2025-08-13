@@ -32,7 +32,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 // Icons
 import { 
   Search, 
@@ -50,7 +49,11 @@ import {
   AlertCircle,
   Lightbulb,
   Target,
-  Calendar
+  Calendar,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  ChevronLeft
 } from "lucide-react";
 
 // ------------------------
@@ -587,6 +590,12 @@ export default function Explorer() {
   const [selectedTradition, setSelectedTradition] = useState<Tradition | null>(null);
   const [selectedAspect, setSelectedAspect] = useState<RowKey | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  
+  // Timeline zoom and pan state
+  const [timelineZoom, setTimelineZoom] = useState(1); // 1 = 100%, 2 = 200%, etc.
+  const [timelinePan, setTimelinePan] = useState(0); // Horizontal offset in pixels
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, pan: 0 });
 
   // Get tradition data by ID
   const getTraditionById = useCallback((id: string | null): Tradition | null => {
@@ -703,6 +712,243 @@ export default function Explorer() {
         </div>
       </div>
 
+      {/* Timeline - Full Width */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-visible">
+        <div className="container max-w-7xl mx-auto px-4 py-4">
+          <Card className="p-4 pb-32 relative z-10 overflow-visible min-h-[200px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="text-sm font-medium">Timeline</div>
+                <div className="flex items-center gap-1 border rounded-md">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => setTimelineZoom(Math.max(0.5, timelineZoom - 0.25))}
+                    disabled={timelineZoom <= 0.5}
+                  >
+                    <ZoomOut className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="text-xs px-2 min-w-[3rem] text-center">
+                    {Math.round(timelineZoom * 100)}%
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => setTimelineZoom(Math.min(3, timelineZoom + 0.25))}
+                    disabled={timelineZoom >= 3}
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    onClick={() => {
+                      setTimelineZoom(1);
+                      setTimelinePan(0);
+                    }}
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                {timelineZoom > 1 && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={() => setTimelinePan(Math.min(0, timelinePan + 200))}
+                      disabled={timelinePan >= 0}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={() => setTimelinePan(Math.max(-800 * (timelineZoom - 1), timelinePan - 200))}
+                      disabled={timelinePan <= -800 * (timelineZoom - 1)}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const startIdx = currentStepIndexValue === -1 ? 0 : currentStepIndexValue + 1;
+                    const nextIdx = Math.min(startIdx, timeline.length - 1);
+                    const tradition = timeline[nextIdx];
+                    handleTraditionSelect(tradition);
+                    setCutoffYear(null);
+                  }}
+                >
+                  Next
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleClearSelection}>
+                  Reset
+                </Button>
+              </div>
+            </div>
+            <div 
+              className="relative cursor-move select-none overflow-visible"
+              onWheel={(e) => {
+                e.preventDefault();
+                if (e.ctrlKey || e.metaKey) {
+                  // Zoom with Ctrl/Cmd + wheel
+                  const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                  setTimelineZoom(Math.max(0.5, Math.min(3, timelineZoom + delta)));
+                } else {
+                  // Pan with regular wheel
+                  const delta = e.deltaX || e.deltaY;
+                  setTimelinePan(Math.max(-800 * (timelineZoom - 1), Math.min(0, timelinePan - delta)));
+                }
+              }}
+              onMouseDown={(e) => {
+                if (timelineZoom > 1) {
+                  setIsDragging(true);
+                  setDragStart({ x: e.clientX, pan: timelinePan });
+                  e.preventDefault();
+                }
+              }}
+              onMouseMove={(e) => {
+                if (isDragging && timelineZoom > 1) {
+                  const delta = e.clientX - dragStart.x;
+                  const newPan = dragStart.pan + delta;
+                  setTimelinePan(Math.max(-800 * (timelineZoom - 1), Math.min(0, newPan)));
+                }
+              }}
+              onMouseUp={() => {
+                setIsDragging(false);
+              }}
+              onMouseLeave={() => {
+                setIsDragging(false);
+              }}
+              // Touch support for tablets
+              onTouchStart={(e) => {
+                if (timelineZoom > 1 && e.touches.length === 1) {
+                  setIsDragging(true);
+                  setDragStart({ x: e.touches[0].clientX, pan: timelinePan });
+                }
+              }}
+              onTouchMove={(e) => {
+                if (isDragging && timelineZoom > 1 && e.touches.length === 1) {
+                  const delta = e.touches[0].clientX - dragStart.x;
+                  const newPan = dragStart.pan + delta;
+                  setTimelinePan(Math.max(-800 * (timelineZoom - 1), Math.min(0, newPan)));
+                }
+              }}
+              onTouchEnd={() => {
+                setIsDragging(false);
+              }}
+            >
+              <div 
+                className="transition-transform duration-300 ease-out"
+                style={{
+                  transform: `translateX(${timelinePan}px) scaleX(${timelineZoom})`,
+                  transformOrigin: 'left center'
+                }}
+              >
+                <div className="relative min-w-[800px] h-32 pb-16">
+                  {/* Timeline line */}
+                  <div className="absolute top-8 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-200 via-blue-300 to-indigo-400"></div>
+                  
+                  {/* Year markers - show more detail when zoomed */}
+                  <div className="absolute top-0 left-0 right-0 flex justify-between text-xs text-muted-foreground">
+                    {timelineZoom >= 2 ? (
+                      // Detailed markers when zoomed in
+                      <>
+                        <span>3000 BCE</span>
+                        <span>2500 BCE</span>
+                        <span>2000 BCE</span>
+                        <span>1500 BCE</span>
+                        <span>1000 BCE</span>
+                        <span>500 BCE</span>
+                        <span>1 CE</span>
+                        <span>500 CE</span>
+                        <span>1000 CE</span>
+                        <span>1500 CE</span>
+                        <span>2000 CE</span>
+                      </>
+                    ) : timelineZoom <= 0.75 ? (
+                      // Simplified markers when zoomed out
+                      <>
+                        <span>Ancient</span>
+                        <span>Classical</span>
+                        <span>Medieval</span>
+                        <span>Modern</span>
+                      </>
+                    ) : (
+                      // Default markers
+                      <>
+                        <span>3000 BCE</span>
+                        <span>2000 BCE</span>
+                        <span>1000 BCE</span>
+                        <span>1 CE</span>
+                        <span>1000 CE</span>
+                        <span>2000 CE</span>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Tradition dots positioned by year */}
+                  {timeline.map((t) => {
+                    // Calculate position (3000 BCE = -3000, 2000 CE = 2000)
+                    const totalRange = 5000; // 3000 BCE to 2000 CE
+                    const yearFromStart = t.firstYear + 3000; // Convert to 0-5000 range
+                    const position = Math.max(0, Math.min(100, (yearFromStart / totalRange) * 100));
+                    
+                    return (
+                      <div
+                        key={t.id}
+                        className="group absolute transform -translate-x-1/2"
+                        style={{ left: `${position}%`, top: '24px' }}
+                      >
+                        <button
+                          onClick={() => handleTraditionSelect(t)}
+                          className="relative"
+                        >
+                          <div className={`h-4 w-4 rounded-full border-2 transition-all duration-200 ${
+                            selectedTradition?.id === t.id 
+                              ? `border-${t.color}-600 bg-${t.color}-400 scale-125 shadow-lg` 
+                              : `border-${t.color}-400 bg-${t.color}-200 hover:scale-110 hover:shadow-md`
+                          }`} />
+                          {/* Connecting line to timeline */}
+                          <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 w-0.5 h-2 ${
+                            selectedTradition?.id === t.id 
+                              ? `bg-${t.color}-600` 
+                              : `bg-${t.color}-400`
+                          }`} />
+                        </button>
+                        {/* Simple hover tooltip - positioned below the dot with more space */}
+                        <div className="absolute left-1/2 transform -translate-x-1/2 top-12 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" style={{ zIndex: 999999, position: 'absolute' }}>
+                          {/* Arrow pointing up to the dot */}
+                          <div className="absolute left-1/2 transform -translate-x-1/2 -top-[6px]">
+                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white dark:border-b-gray-800 drop-shadow-sm"></div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl p-3 min-w-[200px]">
+                            <p className={`font-semibold text-sm text-${t.color}-700 dark:text-${t.color}-400`}>{t.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{formatYear(t.firstYear)}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
+                              {t.overview.reality.substring(0, 100)}...
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
       {/* Three-Pane Layout */}
       <div className="flex-1 overflow-hidden">
         <div className="container max-w-7xl mx-auto px-4 py-6 h-full">
@@ -714,53 +960,6 @@ export default function Explorer() {
                   <h2 className="text-lg font-semibold">Traditions</h2>
                   <Badge variant="outline">{filtered.length}</Badge>
                 </div>
-                
-                {/* Timeline */}
-                <Card className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-medium">Timeline</div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          const startIdx = currentStepIndexValue === -1 ? 0 : currentStepIndexValue + 1;
-                          const nextIdx = Math.min(startIdx, timeline.length - 1);
-                          const tradition = timeline[nextIdx];
-                          handleTraditionSelect(tradition);
-                          setCutoffYear(null);
-                        }}
-                      >
-                        Next
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleClearSelection}>
-                        Reset
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <div className="h-1 w-full rounded bg-foreground/10" />
-                    <div className="mt-2 overflow-x-auto">
-                      <div className="min-w-full flex items-center gap-3 pr-4">
-                        {timeline.slice(0, 6).map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => handleTraditionSelect(t)}
-                            className="group flex flex-col items-center gap-1 min-w-0"
-                            title={`${t.name} • ${formatYear(t.firstYear)}`}
-                          >
-                            <div className={`h-3 w-3 rounded-full border-2 transition-transform ${
-                              selectedTradition?.id === t.id 
-                                ? `border-${t.color}-500 bg-${t.color}-200` 
-                                : `border-${t.color}-300 bg-${t.color}-100`
-                            } group-hover:scale-110`} />
-                            <div className="text-[10px] font-medium truncate max-w-12">{t.name.split(' ')[0]}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
 
                 {/* Tradition List */}
                 <div className="space-y-2">
@@ -779,33 +978,31 @@ export default function Explorer() {
                           <div>
                             <div className={`font-semibold text-sm text-${t.color}-700`}>{t.name}</div>
                             <div className="flex items-center gap-2 mt-1">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge 
-                                      className={`text-xs bg-${t.color}-100 text-${t.color}-700 border-${t.color}-200 cursor-help`}
-                                      variant="outline"
-                                    >
-                                      {t.family}
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-sm">
-                                    <p className="text-xs">{getFamilyExplanation(t.family)}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="text-xs text-muted-foreground cursor-help">
-                                      {formatYear(t.firstYear)}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="left" className="max-w-xs">
-                                    <p className="text-xs">{getYearExplanation(t.firstYear)}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <div className="relative group/badge">
+                                <Badge 
+                                  className={`text-xs bg-${t.color}-100 text-${t.color}-700 border-${t.color}-200 cursor-help`}
+                                  variant="outline"
+                                >
+                                  {t.family}
+                                </Badge>
+                                {/* Family tooltip on hover - positioned to the right */}
+                                <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover/badge:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-xs">
+                                    <p className="text-xs text-gray-700 dark:text-gray-300 whitespace-normal">{getFamilyExplanation(t.family)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="relative group/year">
+                                <span className="text-xs text-muted-foreground cursor-help">
+                                  {formatYear(t.firstYear)}
+                                </span>
+                                {/* Year tooltip on hover - positioned to the right */}
+                                <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover/year:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-xs">
+                                    <p className="text-xs text-gray-700 dark:text-gray-300 whitespace-normal">{getYearExplanation(t.firstYear)}</p>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                           {selectedTradition?.id === t.id && (
@@ -827,38 +1024,36 @@ export default function Explorer() {
                 <div className="space-y-4 overflow-y-auto h-full w-full">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge 
-                              className={`bg-${selectedTradition.color}-500 text-white cursor-help`}
-                            >
-                              {selectedTradition.family}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-sm">
-                            <p className="text-xs">{getFamilyExplanation(selectedTradition.family)}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="relative group/family">
+                        <Badge 
+                          className={`bg-${selectedTradition.color}-500 text-white cursor-help`}
+                        >
+                          {selectedTradition.family}
+                        </Badge>
+                        {/* Family tooltip - positioned below */}
+                        <div className="absolute left-0 top-full mt-2 opacity-0 group-hover/family:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999]">
+                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-sm">
+                            <p className="text-xs text-gray-700 dark:text-gray-300">{getFamilyExplanation(selectedTradition.family)}</p>
+                          </div>
+                        </div>
+                      </div>
                       <h2 className={`text-xl font-bold text-${selectedTradition.color}-700`}>
                         {selectedTradition.name}
                       </h2>
                     </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="cursor-help">
-                              Est. {formatYear(selectedTradition.firstYear)}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p className="text-xs">{getYearExplanation(selectedTradition.firstYear)}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <div className="relative group/date">
+                        <span className="cursor-help">
+                          Est. {formatYear(selectedTradition.firstYear)}
+                        </span>
+                        {/* Date tooltip - positioned below */}
+                        <div className="absolute right-0 top-full mt-2 opacity-0 group-hover/date:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999]">
+                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-xs">
+                            <p className="text-xs text-gray-700 dark:text-gray-300">{getYearExplanation(selectedTradition.firstYear)}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1137,11 +1332,34 @@ export default function Explorer() {
       </div>
 
       <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container max-w-7xl mx-auto px-4 py-3">
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Info className="w-4 h-4" />
-            References link to respected sources like Stanford Encyclopedia, Britannica, and canonical texts.
-          </p>
+        <div className="container max-w-7xl mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="w-4 h-4" />
+              References link to respected sources like Stanford Encyclopedia, Britannica, and canonical texts.
+            </p>
+            <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/Sum1Solutions/philo-explorer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <BookOpen className="w-4 h-4" />
+                Documentation
+              </a>
+              <a
+                href="https://buymeacoffee.com/jon7"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-amber-600 transition-colors flex items-center gap-1"
+                title="Support this project"
+              >
+                <Book className="w-4 h-4" />
+                Buy me a book
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
