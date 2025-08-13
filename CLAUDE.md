@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-The Philosophy & Religion Explorer is an interactive web application built with React + TypeScript + Vite that allows users to explore and compare different philosophical and religious traditions. The app focuses on five key aspects: nature of reality, self, core problem, response/solution, and ultimate aim.
+The Philosophy & Religion Explorer is an interactive web application built with React + TypeScript + Vite that allows users to explore and compare different philosophical and religious traditions. The app focuses on five key aspects: nature of reality, self, core problem, path to transformation, and vision of flourishing.
 
 ## Commands
 
@@ -31,7 +31,7 @@ The app is built around a centralized data structure in Explorer.tsx:
 - `Tradition` interface defines each philosophical/religious tradition
 - `DATA` array contains all tradition data with consistent structure
 - Each tradition has: id, name, family, color, firstYear, overview (5 aspects), references, and optional deepDive
-- Five core aspects (`RowKey`): reality, self, problem, response, aim
+- Five core aspects (`RowKey`): reality, self, problem, response (path to transformation), aim (vision of flourishing)
 
 ### UI Components
 - **`src/components/ui/`** - Reusable UI primitives built with Tailwind CSS

@@ -4,7 +4,7 @@
 
 ## 🎓 For Students
 
-This app is designed to be student-friendly and accessible for learners of all ages, including junior high students. Navigate through centuries of human wisdom with:
+This app is designed to be user-friendly and accessible for learners of all backgrounds. Navigate through centuries of human wisdom with:
 
 - **Simple, Clear Explanations**: All content is written in accessible language
 - **Interactive Timeline**: Explore how ideas developed over time
@@ -194,7 +194,7 @@ npm run typecheck    # TypeScript type checking
 - **Responsive Design**: Works on school tablets and phones
 
 ### Educational Approach
-- **Accessible Language**: Junior high reading level
+- **Accessible Language**: Clear, understandable explanations
 - **Comparative Learning**: Side-by-side tradition analysis
 - **Historical Context**: Timeline shows development over time
 - **Comprehensive Coverage**: 15 major world traditions

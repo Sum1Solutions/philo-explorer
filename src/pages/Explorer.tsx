@@ -25,7 +25,7 @@
  * - selectedAspect: Currently selected aspect for comparison
  */
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 // UI Components
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -90,8 +90,8 @@ const ROW_LABELS: Record<RowKey, string> = {
   reality: "Nature of reality",
   self: "Self",
   problem: "Core problem",
-  response: "Response / solution",
-  aim: "Ultimate aim / message",
+  response: "Path to transformation",
+  aim: "Vision of flourishing",
 };
 
 const DATA: Tradition[] = [
@@ -512,7 +512,7 @@ const DATA: Tradition[] = [
     id: "indigenous",
     name: "Indigenous Wisdom",
     family: "Traditional",
-    color: "brown",
+    color: "slate",
     firstYear: -10000,
     overview: {
       reality: "Living universe where all beings are interconnected; land as sacred.",
@@ -591,11 +591,12 @@ export default function Explorer() {
   const [selectedAspect, setSelectedAspect] = useState<RowKey | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   
-  // Timeline zoom and pan state
-  const [timelineZoom, setTimelineZoom] = useState(1); // 1 = 100%, 2 = 200%, etc.
-  const [timelinePan, setTimelinePan] = useState(0); // Horizontal offset in pixels
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, pan: 0 });
+  // Timeline state (simplified for scrollable interface)
+  const [timelineScale, setTimelineScale] = useState(1); // Scale factor for zooming
+  const [timelineView, setTimelineView] = useState<'overview' | 'detailed'>('overview'); // View mode
+  const [timelineFocusYear, setTimelineFocusYear] = useState<number | null>(null); // Year to focus on when zooming
+  const [hoveredTradition, setHoveredTradition] = useState<Tradition | null>(null); // Hovered tradition for info panel
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Get tradition data by ID
   const getTraditionById = useCallback((id: string | null): Tradition | null => {
@@ -604,11 +605,14 @@ export default function Explorer() {
   }, []);
 
   // Handle tradition selection
-  const handleTraditionSelect = useCallback((tradition: Tradition) => {
+  const handleTraditionSelect = useCallback((tradition: Tradition, focusYear?: number) => {
     setSelectedTradition(tradition);
     setSelectedId(tradition.id);
     // Clear aspect selection when switching traditions
     setSelectedAspect(null);
+    // Switch to detailed timeline view and set focus year
+    setTimelineView('detailed');
+    setTimelineFocusYear(focusYear || tradition.firstYear);
   }, []);
 
   // Handle aspect selection for comparison
@@ -621,7 +625,34 @@ export default function Explorer() {
     setSelectedId(null);
     setSelectedTradition(null);
     setSelectedAspect(null);
+    // Reset to overview mode
+    setTimelineView('overview');
+    setTimelineFocusYear(null);
   }, []);
+
+  // Toggle timeline view
+  const handleTimelineViewToggle = useCallback(() => {
+    if (timelineView === 'overview') {
+      setTimelineView('detailed');
+      setTimelineFocusYear(0); // Default to around 0 CE
+    } else {
+      setTimelineView('overview');
+      setTimelineFocusYear(null);
+    }
+  }, [timelineView]);
+
+  // Handle timeline area click for zooming to specific periods
+  const handleTimelineAreaClick = useCallback((clickX: number, containerWidth: number) => {
+    if (timelineView === 'overview') {
+      // Calculate which year was clicked based on position
+      const totalRange = 14000; // 12000 BCE to 2000 CE
+      const clickPercentage = clickX / containerWidth;
+      const clickedYear = -12000 + (clickPercentage * totalRange);
+      
+      setTimelineView('detailed');
+      setTimelineFocusYear(Math.round(clickedYear));
+    }
+  }, [timelineView]);
 
   // Get traditions for aspect comparison
   const getTraditionsForAspect = useCallback((aspect: RowKey) => {
@@ -635,8 +666,8 @@ export default function Explorer() {
     return [...DATA].sort((a, b) => a.firstYear - b.firstYear);
   }, []);
 
-  // Filter traditions based on search query and cutoff year
-  const filtered = useMemo(() => {
+  // Enhanced search with match location tracking
+  const searchResults = useMemo(() => {
     const q = query.toLowerCase().trim();
     let base = DATA;
     
@@ -650,21 +681,127 @@ export default function Explorer() {
     // Order by first introduction year ascending
     base = [...base].sort((a, b) => a.firstYear - b.firstYear);
     
-    if (!q) return base;
+    if (!q) return { traditions: base, matches: [] };
     
-    return base.filter((t) =>
-      [
-        t.name,
-        t.family,
-        ...Object.values(t.overview),
-        t.deepDive?.notes ?? "",
-        ...(t.deepDive?.keyIdeas ?? []),
-      ]
-        .join("\n")
-        .toLowerCase()
-        .includes(q)
-    );
+    const matches: Array<{
+      tradition: Tradition;
+      location: string;
+      field: string;
+      aspect?: RowKey;
+      text: string;
+      matchIndex: number;
+    }> = [];
+    
+    const matchingTraditions = base.filter((t) => {
+      let hasMatch = false;
+      
+      // Check name
+      if (t.name.toLowerCase().includes(q)) {
+        matches.push({
+          tradition: t,
+          location: 'name',
+          field: 'Name',
+          text: t.name,
+          matchIndex: t.name.toLowerCase().indexOf(q)
+        });
+        hasMatch = true;
+      }
+      
+      // Check family
+      if (t.family.toLowerCase().includes(q)) {
+        matches.push({
+          tradition: t,
+          location: 'family',
+          field: 'Family',
+          text: t.family,
+          matchIndex: t.family.toLowerCase().indexOf(q)
+        });
+        hasMatch = true;
+      }
+      
+      // Check overview aspects
+      Object.entries(t.overview).forEach(([key, value]) => {
+        if (value.toLowerCase().includes(q)) {
+          matches.push({
+            tradition: t,
+            location: 'overview',
+            field: 'Overview',
+            aspect: key as RowKey,
+            text: value,
+            matchIndex: value.toLowerCase().indexOf(q)
+          });
+          hasMatch = true;
+        }
+      });
+      
+      // Check deep dive notes
+      if (t.deepDive?.notes && t.deepDive.notes.toLowerCase().includes(q)) {
+        matches.push({
+          tradition: t,
+          location: 'notes',
+          field: 'Background Notes',
+          text: t.deepDive.notes,
+          matchIndex: t.deepDive.notes.toLowerCase().indexOf(q)
+        });
+        hasMatch = true;
+      }
+      
+      // Check key ideas
+      t.deepDive?.keyIdeas?.forEach((idea, index) => {
+        if (idea.toLowerCase().includes(q)) {
+          matches.push({
+            tradition: t,
+            location: 'keyIdeas',
+            field: `Key Idea ${index + 1}`,
+            text: idea,
+            matchIndex: idea.toLowerCase().indexOf(q)
+          });
+          hasMatch = true;
+        }
+      });
+      
+      return hasMatch;
+    });
+    
+    return { traditions: matchingTraditions, matches };
   }, [query, cutoffYear, selectedId]);
+
+  // Extract traditions for backward compatibility
+  const filtered = searchResults.traditions;
+
+  // Auto-select first matching tradition when searching
+  useEffect(() => {
+    if (query.trim() && searchResults.traditions.length === 1) {
+      // Auto-select if only one tradition matches
+      const tradition = searchResults.traditions[0];
+      setSelectedTradition(tradition);
+      setSelectedId(tradition.id);
+      setTimelineView('detailed');
+      setTimelineFocusYear(tradition.firstYear);
+      setSelectedAspect(null); // Let user explore tabs to find the word
+    }
+  }, [query, searchResults.traditions]);
+
+  // Auto-scroll to focused year when switching to detailed view
+  useEffect(() => {
+    if (timelineView === 'detailed' && timelineFocusYear !== null && timelineRef.current) {
+      // Calculate scroll position to center the focused year
+      const totalRange = 14000; // 12000 BCE to 2000 CE
+      const yearFromStart = timelineFocusYear + 12000; // Convert to 0-14000 range
+      const containerWidth = 2400 - 96; // Total width minus padding
+      const targetPosition = 48 + (yearFromStart / totalRange) * containerWidth;
+      
+      // Center the position in the viewport
+      const viewportWidth = timelineRef.current.clientWidth;
+      const scrollLeft = Math.max(0, targetPosition - viewportWidth / 2);
+      
+      setTimeout(() => {
+        if (timelineRef.current) {
+          timelineRef.current.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+        }
+      }, 100); // Small delay to allow for transition
+    }
+  }, [timelineView, timelineFocusYear]);
 
   // Get current step index for timeline
   const currentStepIndexValue = useMemo(() => {
@@ -677,106 +814,86 @@ export default function Explorer() {
       {/* Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-center gap-2">
               <Layers className="w-6 h-6" />
               <h1 className="text-2xl md:text-3xl font-semibold">Philosophy & Religion Explorer</h1>
             </div>
-            <p className="text-muted-foreground max-w-4xl">
-              📚 <strong>Welcome, student explorers!</strong> This tool helps you discover how different cultures and thinkers throughout history have answered life's biggest questions.
-              Start by clicking any tradition on the left, then explore their ideas and compare them with others.
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="relative w-full md:w-96">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search concepts, e.g., anatta, Logos, moksha, revolt..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="pl-9"
-                />
+            
+            <div className="grid md:grid-cols-3 gap-6 items-start">
+              {/* Left Column - Instructions */}
+              <div className="text-muted-foreground space-y-2">
+                <p className="text-sm">
+                  🔍 <strong>How to explore:</strong> Browse the timeline, click on any tradition to dive deep, or compare how different cultures approach fundamental questions.
+                </p>
+                <p className="text-sm">
+                  🌍 <strong>Journey through wisdom:</strong> From ancient Indigenous knowledge to modern philosophy, discover the rich tapestry of human thought.
+                </p>
               </div>
-              {(selectedTradition || selectedAspect) && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleClearSelection}
-                  className="flex items-center gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Clear
-                </Button>
-              )}
+              
+              {/* Middle Column - Search */}
+              <div className="flex flex-col space-y-3">
+                <div className="relative w-full">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search concepts, e.g., anatta, Logos, moksha, revolt..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="pl-9"
+                  />
+                  
+                  {/* Simple Search Results Indicator */}
+                  {query.trim() && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm z-50 px-3 py-2">
+                      {searchResults.traditions.length > 0 ? (
+                        <div className="text-sm text-muted-foreground">
+                          Found in {searchResults.traditions.length} tradition{searchResults.traditions.length !== 1 ? 's' : ''}
+                          {searchResults.traditions.length === 1 && ' - opening now...'}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          No matches found for "{query}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Right Column - Controls */}
+              <div className="flex flex-col space-y-3">
+                {(selectedTradition || selectedAspect) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleClearSelection}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear Selection
+                  </Button>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  <p>💡 <strong>Tip:</strong> Click timeline areas to zoom into specific periods</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Timeline - Full Width */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 overflow-visible">
+      {/* Timeline - Scrollable Window */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container max-w-7xl mx-auto px-4 py-4">
-          <Card className="p-4 pb-32 relative z-10 overflow-visible min-h-[200px]">
-            <div className="flex items-center justify-between mb-3">
+          <Card className="p-4 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="text-sm font-medium">Timeline</div>
-                <div className="flex items-center gap-1 border rounded-md">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => setTimelineZoom(Math.max(0.5, timelineZoom - 0.25))}
-                    disabled={timelineZoom <= 0.5}
-                  >
-                    <ZoomOut className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="text-xs px-2 min-w-[3rem] text-center">
-                    {Math.round(timelineZoom * 100)}%
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => setTimelineZoom(Math.min(3, timelineZoom + 0.25))}
-                    disabled={timelineZoom >= 3}
-                  >
-                    <ZoomIn className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0"
-                    onClick={() => {
-                      setTimelineZoom(1);
-                      setTimelinePan(0);
-                    }}
-                  >
-                    <Maximize2 className="h-3.5 w-3.5" />
-                  </Button>
+                <div className="text-sm font-medium">Historical Timeline</div>
+                <div className="text-xs text-muted-foreground">
+                  📜 Scroll horizontally to explore • Hover for details • Click to select
                 </div>
-                {timelineZoom > 1 && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => setTimelinePan(Math.min(0, timelinePan + 200))}
-                      disabled={timelinePan >= 0}
-                    >
-                      <ChevronLeft className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => setTimelinePan(Math.max(-800 * (timelineZoom - 1), timelinePan - 200))}
-                      disabled={timelinePan <= -800 * (timelineZoom - 1)}
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -793,571 +910,559 @@ export default function Explorer() {
                 <Button size="sm" variant="ghost" onClick={handleClearSelection}>
                   Reset
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleTimelineViewToggle}
+                  className="flex items-center gap-1"
+                >
+                  {timelineView === 'overview' ? (
+                    <>
+                      <ZoomIn className="h-3 w-3" />
+                      Zoom In
+                    </>
+                  ) : (
+                    <>
+                      <ZoomOut className="h-3 w-3" />
+                      Overview
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
+            
+            {/* Scrollable Timeline Container */}
             <div 
-              className="relative cursor-move select-none overflow-visible"
+              ref={timelineRef}
+              className="relative overflow-x-auto overflow-y-visible pt-8 pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400"
+              style={{ scrollBehavior: 'smooth' }}
               onWheel={(e) => {
-                e.preventDefault();
                 if (e.ctrlKey || e.metaKey) {
-                  // Zoom with Ctrl/Cmd + wheel
-                  const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                  setTimelineZoom(Math.max(0.5, Math.min(3, timelineZoom + delta)));
-                } else {
-                  // Pan with regular wheel
-                  const delta = e.deltaX || e.deltaY;
-                  setTimelinePan(Math.max(-800 * (timelineZoom - 1), Math.min(0, timelinePan - delta)));
-                }
-              }}
-              onMouseDown={(e) => {
-                if (timelineZoom > 1) {
-                  setIsDragging(true);
-                  setDragStart({ x: e.clientX, pan: timelinePan });
                   e.preventDefault();
+                  const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                  const newScale = Math.max(0.5, Math.min(2, timelineScale + delta));
+                  setTimelineScale(newScale);
+                } else {
+                  // Allow horizontal scroll only
+                  e.stopPropagation();
                 }
-              }}
-              onMouseMove={(e) => {
-                if (isDragging && timelineZoom > 1) {
-                  const delta = e.clientX - dragStart.x;
-                  const newPan = dragStart.pan + delta;
-                  setTimelinePan(Math.max(-800 * (timelineZoom - 1), Math.min(0, newPan)));
-                }
-              }}
-              onMouseUp={() => {
-                setIsDragging(false);
-              }}
-              onMouseLeave={() => {
-                setIsDragging(false);
-              }}
-              // Touch support for tablets
-              onTouchStart={(e) => {
-                if (timelineZoom > 1 && e.touches.length === 1) {
-                  setIsDragging(true);
-                  setDragStart({ x: e.touches[0].clientX, pan: timelinePan });
-                }
-              }}
-              onTouchMove={(e) => {
-                if (isDragging && timelineZoom > 1 && e.touches.length === 1) {
-                  const delta = e.touches[0].clientX - dragStart.x;
-                  const newPan = dragStart.pan + delta;
-                  setTimelinePan(Math.max(-800 * (timelineZoom - 1), Math.min(0, newPan)));
-                }
-              }}
-              onTouchEnd={() => {
-                setIsDragging(false);
               }}
             >
               <div 
-                className="transition-transform duration-300 ease-out"
-                style={{
-                  transform: `translateX(${timelinePan}px) scaleX(${timelineZoom})`,
+                className="relative h-16 transition-all duration-500 origin-left cursor-pointer"
+                style={{ 
+                  minWidth: timelineView === 'overview' ? '100%' : `${2400 * timelineScale}px`,
+                  transform: timelineView === 'overview' ? 'scaleX(1)' : `scaleX(${timelineScale})`,
                   transformOrigin: 'left center'
                 }}
+                onClick={(e) => {
+                  if (timelineView === 'overview') {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    handleTimelineAreaClick(clickX, rect.width);
+                  }
+                }}
               >
-                <div className="relative min-w-[800px] h-32 pb-16">
-                  {/* Timeline line */}
-                  <div className="absolute top-8 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-200 via-blue-300 to-indigo-400"></div>
-                  
-                  {/* Year markers - show more detail when zoomed */}
-                  <div className="absolute top-0 left-0 right-0 flex justify-between text-xs text-muted-foreground">
-                    {timelineZoom >= 2 ? (
-                      // Detailed markers when zoomed in
-                      <>
-                        <span>3000 BCE</span>
-                        <span>2500 BCE</span>
-                        <span>2000 BCE</span>
-                        <span>1500 BCE</span>
-                        <span>1000 BCE</span>
-                        <span>500 BCE</span>
-                        <span>1 CE</span>
-                        <span>500 CE</span>
-                        <span>1000 CE</span>
-                        <span>1500 CE</span>
-                        <span>2000 CE</span>
-                      </>
-                    ) : timelineZoom <= 0.75 ? (
-                      // Simplified markers when zoomed out
-                      <>
-                        <span>Ancient</span>
-                        <span>Classical</span>
-                        <span>Medieval</span>
-                        <span>Modern</span>
-                      </>
-                    ) : (
-                      // Default markers
-                      <>
-                        <span>3000 BCE</span>
-                        <span>2000 BCE</span>
-                        <span>1000 BCE</span>
-                        <span>1 CE</span>
-                        <span>1000 CE</span>
-                        <span>2000 CE</span>
-                      </>
-                    )}
-                  </div>
-                  
-                  {/* Tradition dots positioned by year */}
-                  {timeline.map((t) => {
-                    // Calculate position (3000 BCE = -3000, 2000 CE = 2000)
-                    const totalRange = 5000; // 3000 BCE to 2000 CE
-                    const yearFromStart = t.firstYear + 3000; // Convert to 0-5000 range
-                    const position = Math.max(0, Math.min(100, (yearFromStart / totalRange) * 100));
+                {/* Timeline line */}
+                <div className="absolute top-6 left-12 right-12 h-0.5 bg-gradient-to-r from-amber-200 via-blue-300 to-indigo-400"></div>
+                
+                {/* Period markers and labels */}
+                <div className="absolute top-0 left-0 right-0 h-full">
+                  {(() => {
+                    // Calculate percentage positions based on years
+                    // Total range: 14000 years (12000 BCE to 2000 CE)
+                    // Ancient: 12000 BCE to 3000 BCE (9000 years)
+                    // Classical: 3000 BCE to 500 CE (3500 years)  
+                    // Medieval: 500 CE to 1500 CE (1000 years)
+                    // Modern: 1500 CE to 2000 CE (500 years)
+                    
+                    const totalRange = 14000;
+                    const leftPadding = timelineView === 'overview' ? 3 : 2; // Percentage
+                    const rightPadding = timelineView === 'overview' ? 3 : 2; // Percentage
+                    
+                    const ancientStart = leftPadding; // Start of timeline
+                    const classicalStart = leftPadding + ((9000 / totalRange) * (100 - leftPadding - rightPadding));
+                    const medievalStart = leftPadding + ((12500 / totalRange) * (100 - leftPadding - rightPadding));
+                    const modernStart = leftPadding + ((13500 / totalRange) * (100 - leftPadding - rightPadding));
                     
                     return (
-                      <div
-                        key={t.id}
-                        className="group absolute transform -translate-x-1/2"
-                        style={{ left: `${position}%`, top: '24px' }}
-                      >
-                        <button
-                          onClick={() => handleTraditionSelect(t)}
-                          className="relative"
-                        >
-                          <div className={`h-4 w-4 rounded-full border-2 transition-all duration-200 ${
-                            selectedTradition?.id === t.id 
-                              ? `border-${t.color}-600 bg-${t.color}-400 scale-125 shadow-lg` 
-                              : `border-${t.color}-400 bg-${t.color}-200 hover:scale-110 hover:shadow-md`
-                          }`} />
-                          {/* Connecting line to timeline */}
-                          <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 w-0.5 h-2 ${
-                            selectedTradition?.id === t.id 
-                              ? `bg-${t.color}-600` 
-                              : `bg-${t.color}-400`
-                          }`} />
-                        </button>
-                        {/* Simple hover tooltip - positioned below the dot with more space */}
-                        <div className="absolute left-1/2 transform -translate-x-1/2 top-12 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" style={{ zIndex: 999999, position: 'absolute' }}>
-                          {/* Arrow pointing up to the dot */}
-                          <div className="absolute left-1/2 transform -translate-x-1/2 -top-[6px]">
-                            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-white dark:border-b-gray-800 drop-shadow-sm"></div>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl p-3 min-w-[200px]">
-                            <p className={`font-semibold text-sm text-${t.color}-700 dark:text-${t.color}-400`}>{t.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{formatYear(t.firstYear)}</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
-                              {t.overview.reality.substring(0, 100)}...
-                            </p>
-                          </div>
+                      <>
+                        {/* Ancient Period */}
+                        <div className="absolute" style={{ left: `${ancientStart}%`, width: `${classicalStart - ancientStart}%` }}>
+                          <div className="text-xs text-muted-foreground mb-1 font-medium">Ancient Period</div>
                         </div>
-                      </div>
+                        
+                        {/* Classical Period */}
+                        <div className="absolute" style={{ left: `${classicalStart}%`, width: `${medievalStart - classicalStart}%` }}>
+                          <div className="text-xs text-muted-foreground mb-1 font-medium">Classical Period</div>
+                        </div>
+                        
+                        {/* Medieval Period */}
+                        <div className="absolute" style={{ left: `${medievalStart}%`, width: `${modernStart - medievalStart}%` }}>
+                          <div className="text-xs text-muted-foreground mb-1 font-medium">Medieval Period</div>
+                        </div>
+                        
+                        {/* Modern Period */}
+                        <div className="absolute" style={{ left: `${modernStart}%`, width: `${100 - modernStart - rightPadding}%` }}>
+                          <div className="text-xs text-muted-foreground mb-1 font-medium">Modern Period</div>
+                        </div>
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
+                
+                {/* Year markers */}
+                <div className="absolute top-4 left-12 right-12 text-[10px] text-muted-foreground">
+                  <span className="absolute left-0">12000 BCE</span>
+                  <span className="absolute left-[285px]">8000 BCE</span>
+                  <span className="absolute left-[570px]">4000 BCE</span>
+                  <span className="absolute left-[857px]">1 CE</span>
+                  <span className="absolute left-[1140px]">1000 CE</span>
+                  <span className="absolute left-[1360px]">1500 CE</span>
+                  <span className="absolute left-[1600px]">2000 CE</span>
+                </div>
+                
+                {/* Tradition dots positioned by year with collision detection */}
+                {(() => {
+                  // Calculate initial positions
+                  const totalRange = 14000; // 12000 BCE to 2000 CE to include Indigenous traditions
+                  // Use different widths for overview vs detailed view
+                  const baseWidth = timelineView === 'overview' ? 
+                    (timelineRef.current?.clientWidth || 1200) - 96 : // Fit container in overview
+                    2400 - 96; // Fixed width in detailed
+                  const containerWidth = baseWidth;
+                  const dotSize = 20; // Size of each dot
+                  const minSpacing = timelineView === 'overview' ? 30 : 25; // More spacing in overview
+                  
+                  const traditionsWithPositions = timeline.map((t) => {
+                    const yearFromStart = t.firstYear + 12000; // Convert to 0-14000 range
+                    const position = 48 + (yearFromStart / totalRange) * containerWidth; // Add left padding
+                    return { ...t, originalPosition: position, adjustedPosition: position };
+                  });
+                  
+                  // Sort by position for collision detection
+                  traditionsWithPositions.sort((a, b) => a.originalPosition - b.originalPosition);
+                  
+                  // Adjust positions to prevent overlaps
+                  for (let i = 1; i < traditionsWithPositions.length; i++) {
+                    const current = traditionsWithPositions[i];
+                    const previous = traditionsWithPositions[i - 1];
+                    
+                    if (current.adjustedPosition - previous.adjustedPosition < minSpacing) {
+                      current.adjustedPosition = previous.adjustedPosition + minSpacing;
+                    }
+                  }
+                  
+                  return traditionsWithPositions;
+                })().map((t) => {
+                  
+                  return (
+                    <div
+                      key={t.id}
+                      className="group absolute transform -translate-x-1/2"
+                      style={{ left: `${t.adjustedPosition}px`, top: '16px' }}
+                      onMouseEnter={() => setHoveredTradition(t)}
+                      onMouseLeave={() => setHoveredTradition(null)}
+                    >
+                      <button
+                        onClick={() => {
+                          handleTraditionSelect(t, t.firstYear);
+                        }}
+                        className="relative"
+                      >
+                        <div className={`h-5 w-5 rounded-full border-2 transition-all duration-200 ${
+                          selectedTradition?.id === t.id 
+                            ? `border-${t.color}-600 bg-${t.color}-500 scale-125 shadow-lg` 
+                            : `border-${t.color}-500 bg-${t.color}-400 hover:scale-110 hover:shadow-md`
+                        }`} />
+                        {/* Connecting line to timeline */}
+                        <div className={`absolute top-5 left-1/2 transform -translate-x-1/2 w-0.5 h-3 ${
+                          selectedTradition?.id === t.id 
+                            ? `bg-${t.color}-600`
+                            : `bg-${t.color}-400`
+                        }`} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </Card>
         </div>
       </div>
 
-      {/* Three-Pane Layout */}
+      {/* Fixed Tradition Info Panel (appears on hover) */}
+      {hoveredTradition && (
+        <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container max-w-7xl mx-auto px-4 py-3">
+            <Card className={`border-l-4 border-l-${hoveredTradition.color}-500 bg-${hoveredTradition.color}-50/30`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`h-4 w-4 rounded-full bg-${hoveredTradition.color}-400`}></div>
+                    <h3 className={`font-semibold text-lg text-${hoveredTradition.color}-700`}>
+                      {hoveredTradition.name}
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge 
+                      className={`text-xs bg-${hoveredTradition.color}-100 text-${hoveredTradition.color}-700 border-${hoveredTradition.color}-200`}
+                      variant="outline"
+                    >
+                      {hoveredTradition.family}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {formatYear(hoveredTradition.firstYear)}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">What is Reality?</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                      {hoveredTradition.overview.reality}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-sm mb-1">Core Problem</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                      {hoveredTradition.overview.problem}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 text-center">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className={`text-${hoveredTradition.color}-700 border-${hoveredTradition.color}-300 hover:bg-${hoveredTradition.color}-100`}
+                    onClick={() => handleTraditionSelect(hoveredTradition)}
+                  >
+                    Explore {hoveredTradition.name} →
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Conditional Layout: Horizontal Grid or Three-Pane */}
       <div className="flex-1 overflow-hidden">
         <div className="container max-w-7xl mx-auto px-4 py-6 h-full">
-          <div className="grid grid-cols-12 gap-6 h-full">
-            {/* Left Pane - Tradition Cards */}
-            <div className="col-span-12 md:col-span-4 lg:col-span-3">
-              <div className="space-y-4 overflow-y-auto h-full">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Traditions</h2>
-                  <Badge variant="outline">{filtered.length}</Badge>
-                </div>
-
-                {/* Tradition List */}
-                <div className="space-y-2">
-                  {filtered.map((t) => (
-                    <Card 
-                      key={t.id} 
-                      className={`cursor-pointer transition-all border-l-4 border-l-${t.color}-500 ${
-                        selectedTradition?.id === t.id 
-                          ? `ring-2 ring-${t.color}-500/50 shadow-md bg-${t.color}-50/50` 
-                          : 'hover:shadow-md hover:scale-[1.02]'
-                      }`}
-                      onClick={() => handleTraditionSelect(t)}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className={`font-semibold text-sm text-${t.color}-700`}>{t.name}</div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="relative group/badge">
-                                <Badge 
-                                  className={`text-xs bg-${t.color}-100 text-${t.color}-700 border-${t.color}-200 cursor-help`}
-                                  variant="outline"
-                                >
-                                  {t.family}
-                                </Badge>
-                                {/* Family tooltip on hover - positioned to the right */}
-                                <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover/badge:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
-                                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-xs">
-                                    <p className="text-xs text-gray-700 dark:text-gray-300 whitespace-normal">{getFamilyExplanation(t.family)}</p>
+          {selectedTradition || selectedAspect ? (
+            // Three-Pane Layout (when tradition or aspect is selected)
+            <div className="grid grid-cols-12 gap-6 h-full">
+              {/* Left Pane - Tradition Details with Tabs */}
+              <div className="col-span-12 md:col-span-4 lg:col-span-3">
+                {selectedTradition ? (
+                  <Card className="h-full">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Badge 
+                            className={`mb-2 bg-${selectedTradition.color}-100 text-${selectedTradition.color}-700 border-${selectedTradition.color}-200`}
+                            variant="outline"
+                          >
+                            {selectedTradition.family}
+                          </Badge>
+                          <CardTitle className={`text-${selectedTradition.color}-700`}>
+                            {selectedTradition.name}
+                          </CardTitle>
+                          <span className="text-sm text-muted-foreground">
+                            {formatYear(selectedTradition.firstYear)}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedTradition(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="overflow-y-auto h-full">
+                      <Tabs defaultValue="overview" className="h-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="overview">Overview</TabsTrigger>
+                          <TabsTrigger value="ideas">Key Ideas</TabsTrigger>
+                          <TabsTrigger value="references">References</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="overview" className="space-y-4 mt-4">
+                          <div className="space-y-4">
+                            {Object.entries(ROW_LABELS).map(([key, label]) => {
+                              const aspectKey = key as RowKey;
+                              
+                              return (
+                                <div key={key} className="space-y-2">
+                                  <h4 className="font-medium text-sm">{label}</h4>
+                                  <div 
+                                    className={`cursor-pointer p-3 rounded-md border transition-all hover:shadow-sm ${
+                                      selectedAspect === aspectKey
+                                        ? `bg-${selectedTradition.color}-100 border-${selectedTradition.color}-300`
+                                        : `bg-${selectedTradition.color}-50/50 border border-${selectedTradition.color}-100 hover:bg-${selectedTradition.color}-100/70`
+                                    }`}
+                                    onClick={() => setSelectedAspect(aspectKey)}
+                                  >
+                                    <p className="text-xs leading-relaxed">
+                                      {selectedTradition.overview[aspectKey]}
+                                    </p>
                                   </div>
                                 </div>
+                              );
+                            })}
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="ideas" className="mt-4">
+                          {selectedTradition.deepDive ? (
+                            <div className="space-y-4">
+                              <div>
+                                <h3 className="font-semibold mb-3">Key Ideas</h3>
+                                <ul className="space-y-2">
+                                  {selectedTradition.deepDive.keyIdeas.map((idea, index) => (
+                                    <li key={index} className="flex items-start gap-2">
+                                      <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                                      <span className="text-sm">{idea}</span>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
-                              <div className="relative group/year">
-                                <span className="text-xs text-muted-foreground cursor-help">
-                                  {formatYear(t.firstYear)}
-                                </span>
-                                {/* Year tooltip on hover - positioned to the right */}
-                                <div className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover/year:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
-                                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-xs">
-                                    <p className="text-xs text-gray-700 dark:text-gray-300 whitespace-normal">{getYearExplanation(t.firstYear)}</p>
+                              {selectedTradition.deepDive.notes && (
+                                <div>
+                                  <h3 className="font-semibold mb-3">Background</h3>
+                                  <div className="p-4 bg-muted/50 rounded-lg">
+                                    <p className="text-sm leading-relaxed">{selectedTradition.deepDive.notes}</p>
                                   </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-center">
+                              <div className="space-y-3">
+                                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                                <div>
+                                  <h3 className="font-semibold text-lg mb-1">Deep Dive Coming Soon</h3>
+                                  <p className="text-sm text-muted-foreground max-w-sm">
+                                    Detailed key ideas and analysis for this tradition are being prepared.
+                                  </p>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                          {selectedTradition?.id === t.id && (
-                            <ChevronRight className="h-4 w-4 text-primary" />
                           )}
+                        </TabsContent>
+                        
+                        <TabsContent value="references" className="mt-4">
+                          <div className="space-y-4">
+                            <h3 className="font-semibold">Further Reading</h3>
+                            <div className="space-y-3">
+                              {selectedTradition.references.map((ref, index) => {
+                                const getIcon = (type?: string) => {
+                                  switch (type) {
+                                    case 'book': return Book;
+                                    case 'article': return FileText;
+                                    case 'video': return PlayCircle;
+                                    default: return ExternalLink;
+                                  }
+                                };
+                                const IconComponent = getIcon(ref.type);
+                                
+                                return (
+                                  <Card key={index} className="hover:shadow-sm transition-shadow">
+                                    <CardContent className="p-3">
+                                      <div className="flex items-start gap-3">
+                                        <IconComponent className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <a 
+                                            href={ref.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="font-medium text-primary hover:underline block mb-1 text-sm"
+                                          >
+                                            {ref.title}
+                                          </a>
+                                          {ref.author && (
+                                            <p className="text-xs text-muted-foreground mb-1">
+                                              By {ref.author} {ref.year && `(${ref.year})`}
+                                            </p>
+                                          )}
+                                          {ref.description && (
+                                            <p className="text-xs text-muted-foreground">{ref.description}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-center">
+                    <div className="space-y-3">
+                      <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Select a Tradition</h3>
+                        <p className="text-sm text-muted-foreground max-w-sm">
+                          Click any tradition on the timeline to see its details and key questions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Middle Pane - Aspect Comparison */}
+              <div className="col-span-12 md:col-span-8 lg:col-span-9">
+                {selectedAspect ? (
+                  <div className="space-y-4 h-full overflow-y-auto">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-xl font-semibold">{ROW_LABELS[selectedAspect]}</h2>
+                        <p className="text-sm text-muted-foreground">How all traditions approach this question</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedAspect(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {getTraditionsForAspect(selectedAspect).map((tradition) => (
+                        <Card 
+                          key={tradition.id}
+                          className={`transition-all border-l-4 border-l-${tradition.color}-500 ${
+                            selectedTradition?.id === tradition.id 
+                              ? `ring-2 ring-${tradition.color}-500/50 shadow-md bg-${tradition.color}-50/50` 
+                              : 'hover:shadow-md'
+                          }`}
+                          onClick={() => handleTraditionSelect(tradition)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <Badge 
+                                className={`bg-${tradition.color}-100 text-${tradition.color}-700 border-${tradition.color}-200`}
+                                variant="outline"
+                              >
+                                {tradition.family}
+                              </Badge>
+                              <h3 className={`font-semibold text-lg text-${tradition.color}-700`}>
+                                {tradition.name}
+                              </h3>
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                {formatYear(tradition.firstYear)}
+                              </span>
+                            </div>
+                            <div className={`p-4 rounded-lg bg-${tradition.color}-50/50 border border-${tradition.color}-100`}>
+                              <p className="text-sm leading-relaxed">
+                                {tradition.overview[selectedAspect]}
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-center">
+                    <div className="space-y-3">
+                      <Target className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                      <div>
+                        <h3 className="font-semibold text-lg mb-1">Compare Aspects</h3>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                          Click on any aspect (Reality, Self, Problem, Response, Aim) in the tradition cards to see how all traditions approach that fundamental question.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          ) : (
+            // Horizontal Grid Layout (initial view)
+            <div className="space-y-6 h-full overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">Explore Philosophical & Religious Traditions</h2>
+                <Badge variant="outline" className="text-sm px-3 py-1">{filtered.length} traditions</Badge>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {filtered.map((t) => (
+                  <Card 
+                    key={t.id} 
+                    className={`cursor-pointer transition-all border-l-4 border-l-${t.color}-500 hover:shadow-lg hover:scale-[1.02] h-full`}
+                    onClick={() => handleTraditionSelect(t)}
+                  >
+                    <CardContent className="p-4 h-full flex flex-col">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className={`h-3 w-3 rounded-full bg-${t.color}-400`}></div>
+                        <div className={`font-semibold text-sm text-${t.color}-700`}>{t.name}</div>
+                      </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge 
+                          className={`text-xs bg-${t.color}-100 text-${t.color}-700 border-${t.color}-200`}
+                          variant="outline"
+                        >
+                          {t.family}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {formatYear(t.firstYear)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed flex-1">
+                        {t.overview.reality.substring(0, 120)}...
+                      </p>
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Click to explore</span>
+                          <ChevronRight className="h-3 w-3" />
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </div>
-
-            {/* Center Pane - Tradition Details */}
-            <div className={`col-span-12 md:col-span-5 lg:col-span-5 ${
-              !selectedTradition ? 'hidden md:flex' : ''
-            }`}>
-              {selectedTradition ? (
-                <div className="space-y-4 overflow-y-auto h-full w-full">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="relative group/family">
-                        <Badge 
-                          className={`bg-${selectedTradition.color}-500 text-white cursor-help`}
-                        >
-                          {selectedTradition.family}
-                        </Badge>
-                        {/* Family tooltip - positioned below */}
-                        <div className="absolute left-0 top-full mt-2 opacity-0 group-hover/family:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999]">
-                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-sm">
-                            <p className="text-xs text-gray-700 dark:text-gray-300">{getFamilyExplanation(selectedTradition.family)}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <h2 className={`text-xl font-bold text-${selectedTradition.color}-700`}>
-                        {selectedTradition.name}
-                      </h2>
-                    </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <div className="relative group/date">
-                        <span className="cursor-help">
-                          Est. {formatYear(selectedTradition.firstYear)}
-                        </span>
-                        {/* Date tooltip - positioned below */}
-                        <div className="absolute right-0 top-full mt-2 opacity-0 group-hover/date:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999]">
-                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-2 max-w-xs">
-                            <p className="text-xs text-gray-700 dark:text-gray-300">{getYearExplanation(selectedTradition.firstYear)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedTradition.deepDive?.notes && (
-                    <Card>
-                      <CardContent className="p-4">
-                        <p className="text-sm text-muted-foreground">
-                          {selectedTradition.deepDive.notes}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  <Tabs defaultValue="overview" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="overview">Overview</TabsTrigger>
-                      <TabsTrigger value="ideas">Key Ideas</TabsTrigger>
-                      <TabsTrigger value="references">References</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="overview" className="mt-4 space-y-3">
-                      {Object.entries(selectedTradition.overview).map(([key, content]) => {
-                        const aspectKey = key as RowKey;
-                        const iconMap: Record<RowKey, JSX.Element> = {
-                          reality: <Globe className="h-4 w-4 text-blue-500" />,
-                          self: <User className="h-4 w-4 text-green-500" />,
-                          problem: <AlertCircle className="h-4 w-4 text-amber-500" />,
-                          response: <Lightbulb className="h-4 w-4 text-purple-500" />,
-                          aim: <Target className="h-4 w-4 text-rose-500" />
-                        };
-                        const icon = iconMap[aspectKey];
-                        
-                        return (
-                          <Card 
-                            key={key}
-                            className={`cursor-pointer transition-all ${
-                              selectedAspect === aspectKey 
-                                ? 'ring-2 ring-primary/50 shadow-md' 
-                                : 'hover:shadow-md'
-                            }`}
-                            onClick={() => handleAspectSelect(aspectKey)}
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="p-1.5 rounded-md bg-opacity-10 bg-current">
-                                    {icon}
-                                  </div>
-                                  <h3 className="font-medium">
-                                    {ROW_LABELS[aspectKey]}
-                                  </h3>
-                                </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-xs"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAspectSelect(aspectKey);
-                                  }}
-                                >
-                                  Compare →
-                                </Button>
-                              </div>
-                              <p className="text-sm leading-relaxed text-muted-foreground">
-                                {content}
-                              </p>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </TabsContent>
-                    
-                    <TabsContent value="ideas" className="mt-4">
-                      {selectedTradition.deepDive?.keyIdeas && selectedTradition.deepDive.keyIdeas.length > 0 ? (
-                        <div className="space-y-3">
-                          {selectedTradition.deepDive.keyIdeas.map((idea, i) => (
-                            <Card key={i}>
-                              <CardContent className="p-4">
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0 mt-0.5 p-1.5 rounded-md bg-primary/10 text-primary">
-                                    <Lightbulb className="h-4 w-4" />
-                                  </div>
-                                  <p className="text-sm leading-relaxed text-muted-foreground">
-                                    {idea}
-                                  </p>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p>Key ideas coming soon</p>
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="references" className="mt-4">
-                      {selectedTradition.references.length > 0 ? (
-                        <div className="space-y-3">
-                          {selectedTradition.references.map((ref, i) => (
-                            <Card key={i}>
-                              <CardContent className="p-4">
-                                <a 
-                                  href={ref.url} 
-                                  target="_blank" 
-                                  rel="noreferrer"
-                                  className="block group"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="font-medium text-foreground group-hover:text-primary transition-colors">
-                                        {ref.title}
-                                      </h4>
-                                      {(ref.author || ref.year) && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          {ref.author && <span>{ref.author}</span>}
-                                          {ref.author && ref.year && <span className="mx-1">•</span>}
-                                          {ref.year && <span>{ref.year}</span>}
-                                        </p>
-                                      )}
-                                      {ref.description && (
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                          {ref.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      {ref.type === 'book' && <Book className="h-4 w-4 text-amber-500" />}
-                                      {ref.type === 'article' && <FileText className="h-4 w-4 text-blue-500" />}
-                                      {ref.type === 'video' && <PlayCircle className="h-4 w-4 text-red-500" />}
-                                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                  </div>
-                                </a>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p>No references available</p>
-                        </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
+          )}
+          
+          {/* Footer */}
+          <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="container max-w-7xl mx-auto px-4 py-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="w-4 h-4" />
+                  References link to respected sources like Stanford Encyclopedia, Britannica, and canonical texts.
+                </p>
+                <div className="flex items-center gap-4">
+                  <a
+                    href="https://github.com/Sum1Solutions/philo-explorer"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    Documentation
+                  </a>
+                  <a
+                    href="https://buymeacoffee.com/jon7"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-muted-foreground hover:text-amber-600 transition-colors flex items-center gap-1"
+                    title="Support this project"
+                  >
+                    <Book className="w-4 h-4" />
+                    Buy me a book
+                  </a>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-center p-6">
-                  <div className="space-y-6 max-w-md">
-                    <div className="space-y-3">
-                      <Layers className="h-16 w-16 mx-auto text-primary/60" />
-                      <h3 className="font-bold text-xl text-foreground">How to Explore Philosophy & Religion</h3>
-                    </div>
-                    
-                    <div className="space-y-4 text-left">
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</div>
-                        <div>
-                          <p className="font-medium text-sm">Pick a Tradition</p>
-                          <p className="text-xs text-muted-foreground">Click any tradition on the left (like Buddhism or Christianity) to learn about their beliefs</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
-                        <div>
-                          <p className="font-medium text-sm">Explore Their Ideas</p>
-                          <p className="text-xs text-muted-foreground">Read about their views on reality, self, problems, and solutions</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
-                        <div>
-                          <p className="font-medium text-sm">Compare & Contrast</p>
-                          <p className="text-xs text-muted-foreground">Click "Compare →" next to any topic to see how all traditions approach it</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-2">
-                      <p className="text-xs text-muted-foreground italic">
-                        💡 Try clicking "Buddhism" or "Stoicism" to get started!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right Pane - Aspect Comparison */}
-            <div className={`col-span-12 md:col-span-3 lg:col-span-4 ${
-              !selectedAspect ? 'hidden lg:flex' : ''
-            }`}>
-              {selectedAspect ? (
-                <div className="space-y-4 overflow-y-auto h-full w-full">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-primary/10">
-                        {selectedAspect === 'reality' && <Globe className="h-5 w-5 text-primary" />}
-                        {selectedAspect === 'self' && <User className="h-5 w-5 text-primary" />}
-                        {selectedAspect === 'problem' && <AlertCircle className="h-5 w-5 text-primary" />}
-                        {selectedAspect === 'response' && <Lightbulb className="h-5 w-5 text-primary" />}
-                        {selectedAspect === 'aim' && <Target className="h-5 w-5 text-primary" />}
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold">{ROW_LABELS[selectedAspect]}</h2>
-                        <p className="text-sm text-muted-foreground">Across all traditions</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedAspect(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {getTraditionsForAspect(selectedAspect).map((tradition) => (
-                      <Card 
-                        key={tradition.id}
-                        className={`cursor-pointer transition-all border-l-4 border-l-${tradition.color}-500 ${
-                          selectedTradition?.id === tradition.id 
-                            ? `ring-2 ring-${tradition.color}-500/50 shadow-md` 
-                            : 'hover:shadow-md'
-                        }`}
-                        onClick={() => handleTraditionSelect(tradition)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-3 mb-3">
-                            <Badge 
-                              className={`bg-${tradition.color}-100 text-${tradition.color}-700 border-${tradition.color}-200`}
-                              variant="outline"
-                            >
-                              {tradition.family}
-                            </Badge>
-                            <h3 className={`font-semibold text-${tradition.color}-700`}>
-                              {tradition.name}
-                            </h3>
-                            <span className="text-xs text-muted-foreground ml-auto">
-                              {formatYear(tradition.firstYear)}
-                            </span>
-                          </div>
-                          <div className={`p-3 rounded-md bg-${tradition.color}-50/50 border border-${tradition.color}-100`}>
-                            <p className="text-sm leading-relaxed">
-                              {tradition.overview[selectedAspect]}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-center">
-                  <div className="space-y-3">
-                    <Target className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                    <div>
-                      <h3 className="font-semibold text-lg mb-1">Compare Aspects</h3>
-                      <p className="text-sm text-muted-foreground max-w-sm">
-                        Select an aspect from the center pane to see how all traditions approach that topic.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Info className="w-4 h-4" />
-              References link to respected sources like Stanford Encyclopedia, Britannica, and canonical texts.
-            </p>
-            <div className="flex items-center gap-4">
-              <a
-                href="https://github.com/Sum1Solutions/philo-explorer"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-              >
-                <BookOpen className="w-4 h-4" />
-                Documentation
-              </a>
-              <a
-                href="https://buymeacoffee.com/jon7"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-amber-600 transition-colors flex items-center gap-1"
-                title="Support this project"
-              >
-                <Book className="w-4 h-4" />
-                Buy me a book
-              </a>
+              </div>
             </div>
           </div>
         </div>
