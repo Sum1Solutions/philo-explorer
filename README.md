@@ -7,6 +7,7 @@ An interactive explorer to compare philosophical and religious traditions, with 
 - **Comparison View**: Click any aspect (e.g., "Nature of Reality") to compare it across all traditions
 - **Timeline Navigation**: Filter traditions by time period using the interactive timeline
 - **Detailed Exploration**: Drill down into each tradition for in-depth information
+- **Clickable Cards & Rows**: Select a tradition card or individual aspect row to open references and deeper details
 - **Responsive Design**: Works on desktop and mobile devices
 - **Type-Safe**: Built with TypeScript for better developer experience
 

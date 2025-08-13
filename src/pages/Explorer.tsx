@@ -181,7 +181,7 @@ const DATA: Tradition[] = [
     name: "Hinduism (Advaita Vedānta)",
     family: "Eastern",
     color: "orange",
-    firstYear: -800,
+    firstYear: 800,
     overview: {
       reality: "All reality is Brahman; the world as divine play.",
       self: "True Self (Atman) is identical to Brahman.",
@@ -282,6 +282,7 @@ function Row({ label, text }: { label: string; text: string }) {
 export default function Explorer() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<Tradition | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const [cutoffYear, setCutoffYear] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comparison, setComparison] = useState<ComparisonState>({
@@ -413,8 +414,14 @@ export default function Explorer() {
   );
 
   // Row component with click handler for comparison
-  const Row = ({ label, text, aspect }: { label: string; text: string; aspect: RowKey }) => (
-    <div className="space-y-1.5">
+  const Row = ({ label, text, aspect, onDrillDown }: { label: string; text: string; aspect: RowKey; onDrillDown: () => void }) => (
+    <div
+      className="space-y-1.5 cursor-pointer"
+      onClick={(e) => {
+        e.stopPropagation();
+        onDrillDown();
+      }}
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-muted-foreground">{label}</span>
         <Button
@@ -516,23 +523,42 @@ export default function Explorer() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((t) => (
-            <Card key={t.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={t.id}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => {
+                setActive(t);
+                setActiveTab("overview");
+              }}
+            >
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-semibold flex items-center gap-3">
                   <Badge className={`rounded-full px-2 py-1 text-xs bg-${t.color}-100 text-${t.color}-900`}>{t.family}</Badge>
                   <span>{t.name}</span>
                 </CardTitle>
-                <Button size="sm" variant="ghost" onClick={() => setActive(t)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActive(t);
+                    setActiveTab("overview");
+                  }}
+                >
                   Drill down <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3">
                 {Object.entries(ROW_LABELS).map(([key, label]) => (
                   <div key={key}>
-                    <Row 
-                      label={label} 
-                      text={t.overview[key as RowKey]} 
-                      aspect={key as RowKey} 
+                    <Row
+                      label={label}
+                      text={t.overview[key as RowKey]}
+                      aspect={key as RowKey}
+                      onDrillDown={() => {
+                        setActive(t);
+                        setActiveTab("refs");
+                      }}
                     />
                     {key !== 'aim' && <Separator />}
                   </div>
@@ -540,7 +566,7 @@ export default function Explorer() {
               </CardContent>
             </Card>
           ))}
-          </div>
+        </div>
         )}
       </div>
 
@@ -550,7 +576,15 @@ export default function Explorer() {
       </p>
 
       {/* Drilldown Dialog */}
-      <Dialog open={!!activeTradition} onOpenChange={(open) => !open && setActive(null)}>
+      <Dialog
+        open={!!activeTradition}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActive(null);
+            setActiveTab("overview");
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl">
           {activeTradition && (
             <>
@@ -565,7 +599,7 @@ export default function Explorer() {
                   Deeper context, key ideas, and curated references.
                 </DialogDescription>
               </DialogHeader>
-              <Tabs defaultValue="overview" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid grid-cols-3">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="ideas">Key Ideas</TabsTrigger>
