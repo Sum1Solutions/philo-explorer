@@ -2,7 +2,7 @@ import * as React from "react";
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "default" | "ghost" | "secondary";
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "icon";
 };
 
 export function Button({ className = "", variant = "default", size = "md", ...props }: Props) {
@@ -16,6 +16,7 @@ export function Button({ className = "", variant = "default", size = "md", ...pr
     sm: "h-8 px-3",
     md: "h-9 px-4",
     lg: "h-10 px-6",
+    icon: "h-9 w-9 p-0 flex items-center justify-center",
   };
   return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props} />;
 }

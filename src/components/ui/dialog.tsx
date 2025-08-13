@@ -28,14 +28,14 @@ export function DialogContent({ className = "", children }: { className?: string
   );
 }
 
-export function DialogHeader({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2">{children}</div>;
+export function DialogHeader({ className = "", children }: { className?: string; children: React.ReactNode }) {
+  return <div className={`mb-2 ${className}`}>{children}</div>;
 }
 
 export function DialogTitle({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return <h2 className={`text-xl font-semibold ${className}`}>{children}</h2>;
 }
 
-export function DialogDescription({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-muted-foreground">{children}</p>;
+export function DialogDescription({ className = "", children }: { className?: string; children: React.ReactNode }) {
+  return <p className={`text-sm text-muted-foreground ${className}`}>{children}</p>;
 }
