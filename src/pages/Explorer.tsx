@@ -966,49 +966,82 @@ export default function Explorer() {
                 {/* Timeline line */}
                 <div className="absolute top-6 left-12 right-12 h-0.5 bg-gradient-to-r from-amber-200 via-blue-300 to-indigo-400"></div>
                 
-                {/* Period markers and labels */}
-                <div className="absolute top-0 left-0 right-0 h-full">
-                  {(() => {
-                    // Calculate percentage positions based on years
-                    // Total range: 14000 years (12000 BCE to 2000 CE)
-                    // Ancient: 12000 BCE to 3000 BCE (9000 years)
-                    // Classical: 3000 BCE to 500 CE (3500 years)  
-                    // Medieval: 500 CE to 1500 CE (1000 years)
-                    // Modern: 1500 CE to 2000 CE (500 years)
-                    
-                    const totalRange = 14000;
-                    const leftPadding = timelineView === 'overview' ? 3 : 2; // Percentage
-                    const rightPadding = timelineView === 'overview' ? 3 : 2; // Percentage
-                    
-                    const ancientStart = leftPadding; // Start of timeline
-                    const classicalStart = leftPadding + ((9000 / totalRange) * (100 - leftPadding - rightPadding));
-                    const medievalStart = leftPadding + ((12500 / totalRange) * (100 - leftPadding - rightPadding));
-                    const modernStart = leftPadding + ((13500 / totalRange) * (100 - leftPadding - rightPadding));
-                    
-                    return (
-                      <>
-                        {/* Ancient Period */}
-                        <div className="absolute" style={{ left: `${ancientStart}%`, width: `${classicalStart - ancientStart}%` }}>
-                          <div className="text-xs text-muted-foreground mb-1 font-medium">Ancient Period</div>
-                        </div>
+                {/* Period markers and labels - positioned higher to avoid dots */}
+                <div className="absolute -top-4 left-0 right-0 h-full">
+                  {timelineView === 'overview' ? (
+                    // Use percentage positioning for overview mode to match the flexible container
+                    <>
+                      {/* Ancient Period */}
+                      <div className="absolute left-12" style={{ width: '30%' }}>
+                        <div className="text-xs text-muted-foreground font-medium">Ancient Period</div>
+                      </div>
+                      
+                      {/* Classical Period */}
+                      <div className="absolute left-[42%]" style={{ width: '25%' }}>
+                        <div className="text-xs text-muted-foreground font-medium">Classical Period</div>
+                      </div>
+                      
+                      {/* Medieval Period */}
+                      <div className="absolute left-[67%]" style={{ width: '15%' }}>
+                        <div className="text-xs text-muted-foreground font-medium">Medieval Period</div>
+                      </div>
+                      
+                      {/* Modern Period */}
+                      <div className="absolute left-[82%]" style={{ width: 'calc(18% - 48px)' }}>
+                        <div className="text-xs text-muted-foreground font-medium">Modern Period</div>
+                      </div>
+                    </>
+                  ) : (
+                    // Use pixel positioning for detailed mode
+                    <>
+                      {(() => {
+                        const totalRange = 14000; // 12000 BCE to 2000 CE
+                        const containerWidth = 2400 - 96; // Fixed width in detailed
                         
-                        {/* Classical Period */}
-                        <div className="absolute" style={{ left: `${classicalStart}%`, width: `${medievalStart - classicalStart}%` }}>
-                          <div className="text-xs text-muted-foreground mb-1 font-medium">Classical Period</div>
-                        </div>
+                        const ancientStart = 48;
+                        const classicalStart = 48 + ((9000 / totalRange) * containerWidth);
+                        const medievalStart = 48 + ((12500 / totalRange) * containerWidth);
+                        const modernStart = 48 + ((13500 / totalRange) * containerWidth);
+                        const endPosition = 48 + containerWidth;
                         
-                        {/* Medieval Period */}
-                        <div className="absolute" style={{ left: `${medievalStart}%`, width: `${modernStart - medievalStart}%` }}>
-                          <div className="text-xs text-muted-foreground mb-1 font-medium">Medieval Period</div>
-                        </div>
-                        
-                        {/* Modern Period */}
-                        <div className="absolute" style={{ left: `${modernStart}%`, width: `${100 - modernStart - rightPadding}%` }}>
-                          <div className="text-xs text-muted-foreground mb-1 font-medium">Modern Period</div>
-                        </div>
-                      </>
-                    );
-                  })()}
+                        return (
+                          <>
+                            {/* Ancient Period */}
+                            <div className="absolute" style={{ 
+                              left: `${ancientStart}px`, 
+                              width: `${classicalStart - ancientStart}px` 
+                            }}>
+                              <div className="text-xs text-muted-foreground font-medium">Ancient Period</div>
+                            </div>
+                            
+                            {/* Classical Period */}
+                            <div className="absolute" style={{ 
+                              left: `${classicalStart}px`, 
+                              width: `${medievalStart - classicalStart}px` 
+                            }}>
+                              <div className="text-xs text-muted-foreground font-medium">Classical Period</div>
+                            </div>
+                            
+                            {/* Medieval Period */}
+                            <div className="absolute" style={{ 
+                              left: `${medievalStart}px`, 
+                              width: `${modernStart - medievalStart}px` 
+                            }}>
+                              <div className="text-xs text-muted-foreground font-medium">Medieval Period</div>
+                            </div>
+                            
+                            {/* Modern Period */}
+                            <div className="absolute" style={{ 
+                              left: `${modernStart}px`, 
+                              width: `${endPosition - modernStart}px` 
+                            }}>
+                              <div className="text-xs text-muted-foreground font-medium">Modern Period</div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
                 </div>
                 
                 {/* Year markers */}
@@ -1026,18 +1059,25 @@ export default function Explorer() {
                 {(() => {
                   // Calculate initial positions
                   const totalRange = 14000; // 12000 BCE to 2000 CE to include Indigenous traditions
-                  // Use different widths for overview vs detailed view
-                  const baseWidth = timelineView === 'overview' ? 
-                    (timelineRef.current?.clientWidth || 1200) - 96 : // Fit container in overview
-                    2400 - 96; // Fixed width in detailed
-                  const containerWidth = baseWidth;
-                  const dotSize = 20; // Size of each dot
                   const minSpacing = timelineView === 'overview' ? 30 : 25; // More spacing in overview
                   
                   const traditionsWithPositions = timeline.map((t) => {
                     const yearFromStart = t.firstYear + 12000; // Convert to 0-14000 range
-                    const position = 48 + (yearFromStart / totalRange) * containerWidth; // Add left padding
-                    return { ...t, originalPosition: position, adjustedPosition: position };
+                    
+                    if (timelineView === 'overview') {
+                      // Use percentage positioning for overview mode
+                      const percentage = (yearFromStart / totalRange) * 100;
+                      // Add padding equivalent to left-12 (48px) as percentage
+                      const leftPadding = 4; // Approximate percentage for 48px padding
+                      const rightPadding = 4;
+                      const position = leftPadding + (percentage * (100 - leftPadding - rightPadding) / 100);
+                      return { ...t, originalPosition: position, adjustedPosition: position, isPercentage: true };
+                    } else {
+                      // Use pixel positioning for detailed mode
+                      const containerWidth = 2400 - 96; // Fixed width in detailed
+                      const position = 48 + (yearFromStart / totalRange) * containerWidth;
+                      return { ...t, originalPosition: position, adjustedPosition: position, isPercentage: false };
+                    }
                   });
                   
                   // Sort by position for collision detection
@@ -1060,7 +1100,7 @@ export default function Explorer() {
                     <div
                       key={t.id}
                       className="group absolute transform -translate-x-1/2"
-                      style={{ left: `${t.adjustedPosition}px`, top: '16px' }}
+                      style={{ left: `${t.adjustedPosition}${t.isPercentage ? '%' : 'px'}`, top: '16px' }}
                       onMouseEnter={() => setHoveredTradition(t)}
                       onMouseLeave={() => setHoveredTradition(null)}
                     >
