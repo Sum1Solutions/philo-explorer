@@ -140,8 +140,10 @@ npm run build
 3. Build and deploy:
    ```bash
    npm run build
-   npx wrangler pages deploy dist
+   npm run cf:deploy
    ```
+   
+   **Note**: Always run `npm run build` first to ensure your latest changes are included in the deployment. The `cf:deploy` script uses the pre-configured project settings.
 
 ## 🏗 Project Architecture
 
@@ -176,8 +178,9 @@ npm run dev          # Start development server (localhost:5174)
 npm run build        # Create production build
 npm run preview      # Preview production build locally
 
-# Deployment
-npx wrangler pages deploy dist  # Deploy to Cloudflare Pages
+# Deployment  
+npm run build        # Build first (required!)
+npm run cf:deploy    # Deploy to Cloudflare Pages
 
 # Code Quality
 npm run lint         # Run ESLint (if configured)
