@@ -662,10 +662,25 @@ export default function Explorer() {
       .sort((a, b) => a.firstYear - b.firstYear);
   }, []);
 
-  // Timeline data sorted by first introduction
+  // Timeline data with selected tradition and newer ones only
   const timeline = useMemo(() => {
-    return [...DATA].sort((a, b) => a.firstYear - b.firstYear);
-  }, []);
+    const sorted = [...DATA].sort((a, b) => a.firstYear - b.firstYear);
+    
+    // If a tradition is selected from timeline, show only it and more recent ones
+    if (selectedId) {
+      const selectedIndex = sorted.findIndex(t => t.id === selectedId);
+      if (selectedIndex !== -1) {
+        const selectedTradition = sorted[selectedIndex];
+        // Filter to show selected tradition and all traditions that came after it
+        const filtered = sorted.filter(t => t.firstYear >= selectedTradition.firstYear);
+        // Put selected tradition first, then others in chronological order
+        const others = filtered.filter(t => t.id !== selectedId);
+        return [selectedTradition, ...others];
+      }
+    }
+    
+    return sorted;
+  }, [selectedId]);
 
   // Enhanced search with match location tracking
   const searchResults = useMemo(() => {

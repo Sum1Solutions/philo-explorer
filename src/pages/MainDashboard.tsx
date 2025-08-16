@@ -20,7 +20,7 @@ import {
   History,
   Library,
   Compass,
-  Timeline,
+  Clock,
   Scroll,
   Mountain,
   TreePine
@@ -86,7 +86,7 @@ const MainDashboard: React.FC = () => {
       title: 'Evolution of Ideas',
       subtitle: 'Ideas Through Time',
       description: 'Track how core philosophical concepts like reality, self, and meaning have evolved across 100,000 years of human thought.',
-      icon: Timeline,
+      icon: Clock,
       color: 'purple',
       stats: [
         { label: 'Years Tracked', value: '100k+' },
