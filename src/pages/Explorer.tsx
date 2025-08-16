@@ -53,7 +53,8 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  ChevronLeft
+  ChevronLeft,
+  Clock
 } from "lucide-react";
 
 // ------------------------
@@ -1428,48 +1429,114 @@ export default function Explorer() {
 
             </div>
           ) : (
-            // Horizontal Grid Layout (initial view)
-            <div className="space-y-6 h-full overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold">Explore Philosophical & Religious Traditions</h2>
-                <Badge variant="outline" className="text-sm px-3 py-1">{filtered.length} traditions</Badge>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {filtered.map((t) => (
-                  <Card 
-                    key={t.id} 
-                    className={`cursor-pointer transition-all border-l-4 border-l-${t.color}-500 hover:shadow-lg hover:scale-[1.02] h-full`}
-                    onClick={() => handleTraditionSelect(t)}
-                  >
-                    <CardContent className="p-4 h-full flex flex-col">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className={`h-3 w-3 rounded-full bg-${t.color}-400`}></div>
-                        <div className={`font-semibold text-sm text-${t.color}-700`}>{t.name}</div>
-                      </div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <Badge 
-                          className={`text-xs bg-${t.color}-100 text-${t.color}-700 border-${t.color}-200`}
-                          variant="outline"
-                        >
-                          {t.family}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formatYear(t.firstYear)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed flex-1">
-                        {t.overview.reality.substring(0, 120)}...
-                      </p>
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Click to explore</span>
-                          <ChevronRight className="h-3 w-3" />
+            // Three-tile Dashboard Layout (initial view)
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+              {/* Left Tile - Historic Timeline */}
+              <Card className="h-full flex flex-col">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Historic Timeline
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Journey through 14,000 years of human wisdom
+                  </p>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto">
+                  <div className="space-y-2">
+                    {timeline.map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleTraditionSelect(t)}
+                        className={`w-full text-left p-3 rounded-lg transition-all hover:bg-${t.color}-50 hover:border-${t.color}-200 border border-transparent`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full bg-${t.color}-400`}></div>
+                            <span className="text-sm font-medium">{t.name}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatYear(t.firstYear)}
+                          </span>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Middle Tile - Browse Traditions */}
+              <Card className="h-full flex flex-col">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Layers className="h-5 w-5" />
+                    Browse Traditions
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    {filtered.length} philosophical and religious traditions
+                  </p>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto">
+                  <div className="grid grid-cols-1 gap-3">
+                    {filtered.map((t) => (
+                      <Card 
+                        key={t.id} 
+                        className={`cursor-pointer transition-all border-l-4 border-l-${t.color}-500 hover:shadow-md hover:scale-[1.02]`}
+                        onClick={() => handleTraditionSelect(t)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`h-2 w-2 rounded-full bg-${t.color}-400`}></div>
+                            <div className={`font-semibold text-sm text-${t.color}-700`}>{t.name}</div>
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge 
+                              className={`text-xs bg-${t.color}-100 text-${t.color}-700 border-${t.color}-200`}
+                              variant="outline"
+                            >
+                              {t.family}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {formatYear(t.firstYear)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-2">
+                            {t.overview.reality}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Right Tile - Tradition Details */}
+              <Card className="h-full flex flex-col">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5" />
+                    Tradition Details
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Click a tradition to explore its philosophy
+                  </p>
+                </CardHeader>
+                <CardContent className="flex-1 flex items-center justify-center">
+                  <div className="text-center space-y-3">
+                    <Info className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                    <div>
+                      <h3 className="font-semibold text-lg mb-1">No Selection</h3>
+                      <p className="text-sm text-muted-foreground max-w-sm">
+                        Select a tradition from the timeline or browse list to see detailed information about its beliefs and practices.
+                      </p>
+                    </div>
+                    <div className="pt-4 space-y-2 text-xs text-muted-foreground">
+                      <p>💡 <strong>Tip:</strong> Use the search bar above to find specific concepts</p>
+                      <p>🎯 <strong>Tip:</strong> Click on any tradition to dive deep into its worldview</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
           

@@ -17,7 +17,13 @@ import {
   ArrowRight,
   ChevronLeft,
   Lightbulb,
-  History
+  History,
+  Library,
+  Compass,
+  Timeline,
+  Scroll,
+  Mountain,
+  TreePine
 } from 'lucide-react';
 
 // Import our components
@@ -33,14 +39,14 @@ type ViewType = 'dashboard' | 'wisdom' | 'survivor' | 'evolution';
 const MainDashboard: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
 
-  // Tile configurations
+  // Tile configurations - ordered by prominence (largest number first)
   const tiles = [
     {
       key: 'wisdom' as ViewType,
       title: 'Wisdom Explorer',
       subtitle: 'Explore Living Traditions',
       description: 'Discover and compare 15 major philosophical and religious traditions from around the world. From ancient Buddhism to modern Existentialism.',
-      icon: BookOpen,
+      icon: Library,
       color: 'blue',
       stats: [
         { label: 'Traditions', value: DATA.length },
@@ -51,17 +57,19 @@ const MainDashboard: React.FC = () => {
       gradientFrom: 'from-blue-500',
       gradientTo: 'to-cyan-500',
       bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200'
+      borderColor: 'border-blue-200',
+      accentColor: 'text-blue-600',
+      iconBg: 'bg-blue-100'
     },
     {
       key: 'survivor' as ViewType,
       title: 'Lost Traditions',
       subtitle: 'Understanding Survivor Bias',
       description: 'Explore 20+ major philosophical and religious traditions that have been lost to history. Learn why certain ideas survive while others disappear.',
-      icon: Skull,
+      icon: Mountain,
       color: 'red',
       stats: [
-        { label: 'Lost Traditions', value: extinctTraditions.length },
+        { label: 'Lost Traditions', value: `${extinctTraditions.length}+` },
         { label: 'Peak Adherents', value: '200M+' },
         { label: 'Continents', value: 6 },
       ],
@@ -69,25 +77,29 @@ const MainDashboard: React.FC = () => {
       gradientFrom: 'from-red-500',
       gradientTo: 'to-pink-500',
       bgColor: 'bg-red-50',
-      borderColor: 'border-red-200'
+      borderColor: 'border-red-200',
+      accentColor: 'text-red-600',
+      iconBg: 'bg-red-100'
     },
     {
       key: 'evolution' as ViewType,
       title: 'Evolution of Ideas',
       subtitle: 'Ideas Through Time',
       description: 'Track how core philosophical concepts like reality, self, and meaning have evolved across 100,000 years of human thought.',
-      icon: TrendingUp,
+      icon: Timeline,
       color: 'purple',
       stats: [
-        { label: 'Time Periods', value: evolutionPeriods.length },
         { label: 'Years Tracked', value: '100k+' },
+        { label: 'Time Periods', value: evolutionPeriods.length },
         { label: 'Core Aspects', value: 5 },
       ],
       highlights: ['Conceptual evolution', 'Historical trends', 'Pattern analysis'],
       gradientFrom: 'from-purple-500',
       gradientTo: 'to-indigo-500',
       bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200'
+      borderColor: 'border-purple-200',
+      accentColor: 'text-purple-600',
+      iconBg: 'bg-purple-100'
     }
   ];
 
@@ -153,93 +165,73 @@ const MainDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b bg-white/80 backdrop-blur">
-        <div className="container max-w-7xl mx-auto px-6 py-8">
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center gap-3">
-              <div className="flex items-center gap-2">
-                <Globe className="w-8 h-8 text-blue-600" />
-                <Lightbulb className="w-8 h-8 text-purple-600" />
-                <History className="w-8 h-8 text-red-600" />
-              </div>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-red-600 bg-clip-text text-transparent">
+      <div className="border-b bg-white">
+        <div className="container max-w-7xl mx-auto px-6 py-12">
+          <div className="text-center space-y-6">
+            <BookOpen className="w-12 h-12 mx-auto text-gray-600" />
+            <h1 className="text-4xl font-bold text-gray-900">
               Philosophy & Religion Explorer
             </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Explore the full spectrum of human wisdom—from living traditions to lost knowledge, 
-              and the evolution of ideas across 100,000 years of human thought.
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Explore philosophical and religious traditions from around the world.
             </p>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container max-w-7xl mx-auto px-6 py-12">
+      <div className="container max-w-6xl mx-auto px-6 py-16">
         {/* Three Main Tiles */}
-        <div className="grid lg:grid-cols-3 gap-8 mb-12">
+        <div className="grid lg:grid-cols-3 gap-8 mb-16">
           {tiles.map((tile) => {
             const IconComponent = tile.icon;
             return (
               <Card 
                 key={tile.key}
-                className={`group cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl ${tile.bgColor} ${tile.borderColor} border-2`}
+                className="group cursor-pointer transition-all hover:shadow-lg border hover:border-gray-300"
                 onClick={() => setCurrentView(tile.key)}
               >
                 <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${tile.gradientFrom} ${tile.gradientTo} shadow-lg`}>
-                      <IconComponent className="h-8 w-8 text-white" />
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-1 transition-all" />
+                  {/* Visual header with larger icon */}
+                  <div className={`w-full h-20 ${tile.iconBg} rounded-lg mb-4 flex items-center justify-center`}>
+                    <IconComponent className={`h-10 w-10 ${tile.accentColor}`} />
                   </div>
-                  <CardTitle className="text-2xl">{tile.title}</CardTitle>
-                  <CardDescription className="text-base">{tile.subtitle}</CardDescription>
+                  <div className="flex items-center gap-3 mb-3">
+                    <CardTitle className="text-xl">{tile.title}</CardTitle>
+                  </div>
+                  <CardDescription className="text-sm">
+                    {tile.key === 'wisdom' ? 'Compare 15 philosophical and religious traditions' :
+                     tile.key === 'survivor' ? 'Explore traditions lost to history' :
+                     'Track how ideas evolved over time'}
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {tile.description}
-                  </p>
-                  
+                <CardContent className="space-y-4">
                   {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     {tile.stats.map((stat, idx) => (
                       <div key={idx} className="text-center">
-                        <div className="text-2xl font-bold text-foreground">
+                        <div className={`text-lg font-semibold ${idx === 0 ? tile.accentColor : 'text-gray-900'}`}>
                           {stat.value}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-gray-500">
                           {stat.label}
                         </div>
                       </div>
                     ))}
                   </div>
                   
-                  {/* Highlights */}
-                  <div className="space-y-2">
-                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Key Features
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {tile.highlights.map((highlight, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {highlight}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
                   {/* Action Button */}
                   <Button 
-                    className={`w-full bg-gradient-to-r ${tile.gradientFrom} ${tile.gradientTo} hover:opacity-90 text-white`}
+                    variant="outline"
+                    className="w-full group-hover:bg-gray-50"
                     onClick={(e) => {
                       e.stopPropagation();
                       setCurrentView(tile.key);
                     }}
                   >
-                    Explore {tile.title}
+                    Explore
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardContent>
@@ -248,40 +240,10 @@ const MainDashboard: React.FC = () => {
           })}
         </div>
 
-        {/* Overview Stats */}
-        <Card className="bg-white/60 backdrop-blur">
-          <CardHeader className="text-center">
-            <CardTitle>Knowledge at a Glance</CardTitle>
-            <CardDescription>
-              The scope of human wisdom explored in this application
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-4 gap-8 text-center">
-              <div>
-                <div className="text-4xl font-bold text-blue-600">{DATA.length}</div>
-                <div className="text-sm text-muted-foreground">Living Traditions</div>
-              </div>
-              <div>
-                <div className="text-4xl font-bold text-red-600">{extinctTraditions.length}+</div>
-                <div className="text-sm text-muted-foreground">Lost Traditions</div>
-              </div>
-              <div>
-                <div className="text-4xl font-bold text-purple-600">100k+</div>
-                <div className="text-sm text-muted-foreground">Years of History</div>
-              </div>
-              <div>
-                <div className="text-4xl font-bold text-green-600">6</div>
-                <div className="text-sm text-muted-foreground">Continents Covered</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <div className="mt-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            Built to understand the full spectrum of human wisdom—both what survived and what was lost.
+        {/* Simple Footer */}
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            Explore philosophical and religious traditions from around the world.
           </p>
         </div>
       </div>

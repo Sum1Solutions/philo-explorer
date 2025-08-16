@@ -60,6 +60,10 @@ const ExplorerWithEnhancements: React.FC = () => {
   const [currentView, setCurrentView] = useState<'main' | 'survivor' | 'evolution'>('main');
   const [selectedFamily, setSelectedFamily] = useState<string>('all');
   const [selectedAspect, setSelectedAspect] = useState<RowKey | null>(null);
+  
+  // Refs for auto-scrolling
+  const traditionsListRef = React.useRef<HTMLDivElement>(null);
+  const timelineRef = React.useRef<HTMLDivElement>(null);
 
   // Get all families for filtering
   const families = useMemo(() => {
@@ -118,6 +122,40 @@ const ExplorerWithEnhancements: React.FC = () => {
   const handleTraditionSelect = useCallback((tradition: Tradition) => {
     setSelectedId(tradition.id);
     setActiveTradition(tradition);
+    
+    // Auto-scroll the traditions list to move the selected tradition to the top
+    setTimeout(() => {
+      if (traditionsListRef.current) {
+        const selectedElement = traditionsListRef.current.querySelector(`[data-tradition-id="${tradition.id}"]`);
+        if (selectedElement) {
+          const container = traditionsListRef.current;
+          const elementTop = (selectedElement as HTMLElement).offsetTop;
+          
+          // Scroll to bring the selected element to the top with a small offset
+          container.scrollTo({
+            top: Math.max(0, elementTop - 20),
+            behavior: 'smooth'
+          });
+        }
+      }
+      
+      // Auto-scroll the timeline to show the selected tradition
+      if (timelineRef.current) {
+        const selectedElement = timelineRef.current.querySelector(`[data-timeline-id="${tradition.id}"]`);
+        if (selectedElement) {
+          const container = timelineRef.current;
+          const elementLeft = (selectedElement as HTMLElement).offsetLeft;
+          const elementWidth = (selectedElement as HTMLElement).offsetWidth;
+          const containerWidth = container.offsetWidth;
+          const scrollPosition = elementLeft - (containerWidth / 2) + (elementWidth / 2);
+          
+          container.scrollTo({
+            left: scrollPosition,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }, 100);
   }, []);
 
   const handleCloseDialog = useCallback(() => {
@@ -284,9 +322,103 @@ const ExplorerWithEnhancements: React.FC = () => {
               )}
             </div>
 
-            {/* Three-pane layout */}
+            {/* Horizontal Timeline */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Historical Timeline
+                  </div>
+                  <div className="flex gap-2 text-xs">
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-amber-500"></div> Traditional</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-purple-500"></div> Eastern</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-blue-500"></div> Abrahamic</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-green-500"></div> Classical</span>
+                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-500"></div> Modern</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative">
+                <button 
+                  onClick={() => {
+                    const timeline = document.getElementById('timeline-scroll');
+                    if (timeline) timeline.scrollBy({ left: -200, behavior: 'smooth' });
+                  }}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-md"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button 
+                  onClick={() => {
+                    const timeline = document.getElementById('timeline-scroll');
+                    if (timeline) timeline.scrollBy({ left: 200, behavior: 'smooth' });
+                  }}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-md"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <div id="timeline-scroll" className="flex gap-3 overflow-x-auto pb-3 px-12 scroll-smooth" 
+                     style={{ 
+                       scrollbarWidth: 'thin',
+                       scrollbarColor: '#cbd5e1 #f1f5f9'
+                     }}>
+                  {timeline.map((tradition) => {
+                    const familyColors = {
+                      'Traditional': 'bg-amber-500 border-amber-300 hover:bg-amber-50',
+                      'Eastern': 'bg-purple-500 border-purple-300 hover:bg-purple-50',
+                      'Abrahamic': 'bg-blue-500 border-blue-300 hover:bg-blue-50',
+                      'Classical': 'bg-green-500 border-green-300 hover:bg-green-50',
+                      'Modern': 'bg-red-500 border-red-300 hover:bg-red-50'
+                    };
+                    const colors = familyColors[tradition.family as keyof typeof familyColors] || 'bg-gray-500 border-gray-300 hover:bg-gray-50';
+                    const [bgColor, borderColor, hoverColor] = colors.split(' ');
+                    
+                    return (
+                      <button
+                        key={tradition.id}
+                        data-timeline-id={tradition.id}
+                        className={`flex-shrink-0 p-3 rounded-lg border-2 transition-all min-w-[140px] ${
+                          selectedId === tradition.id 
+                            ? `${bgColor.replace('500', '100')} ${borderColor} shadow-lg scale-105 ring-2 ring-offset-2` 
+                            : `${hoverColor} border-gray-200 hover:border-gray-300`
+                        }`}
+                        onClick={() => handleTraditionSelect(tradition)}
+                      >
+                        <div className="text-center">
+                          <div className={`w-2 h-2 rounded-full ${bgColor} mx-auto mb-2`}></div>
+                          <div className="text-xs font-bold text-muted-foreground mb-1">
+                            {tradition.firstYear > 0 ? `${tradition.firstYear} CE` : `${Math.abs(tradition.firstYear)} BCE`}
+                          </div>
+                          <div className="font-medium text-sm">{tradition.name}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{tradition.family}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <style jsx>{`
+                  div::-webkit-scrollbar {
+                    height: 8px;
+                  }
+                  div::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 4px;
+                  }
+                  div::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 4px;
+                  }
+                  div::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                  }
+                `}</style>
+              </CardContent>
+            </Card>
+
+            {/* Three-column layout */}
             <div className="grid lg:grid-cols-3 gap-6">
-              {/* Left Panel: Tradition Browser */}
+              {/* Left Panel: Traditions */}
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader>
@@ -295,14 +427,15 @@ const ExplorerWithEnhancements: React.FC = () => {
                       Traditions ({filteredData.length})
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3 max-h-[600px] overflow-y-auto">
-                    {filteredData.map((tradition) => {
+                  <CardContent ref={traditionsListRef} className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {filteredData.sort((a, b) => a.firstYear - b.firstYear).map((tradition) => {
                       const colors = getTraditionColors(tradition.id);
                       return (
                         <Card
                           key={tradition.id}
+                          data-tradition-id={tradition.id}
                           className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${
-                            selectedId === tradition.id ? 'ring-2 shadow-lg' : ''
+                            selectedId === tradition.id ? 'ring-2 shadow-lg transform scale-[1.02] bg-blue-50' : ''
                           }`}
                           style={{ 
                             borderLeftColor: colors.primary,
@@ -512,41 +645,28 @@ const ExplorerWithEnhancements: React.FC = () => {
                       <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                       <h3 className="font-medium mb-2">Select a Tradition</h3>
                       <p className="text-sm text-muted-foreground">
-                        Click on a tradition from the left panel to explore its core teachings and references.
+                        Click on a tradition from the timeline or traditions list to explore its core teachings and references.
                       </p>
                     </CardContent>
                   </Card>
                 )}
               </div>
 
-              {/* Right Panel: Timeline */}
+              {/* Right Panel: Future Content */}
               <div className="lg:col-span-1">
-                <Card>
+                <Card className="h-full">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Historical Timeline
+                      <Layers className="h-4 w-4" />
+                      Coming Soon
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                      {timeline.map((tradition, idx) => (
-                        <div 
-                          key={tradition.id}
-                          className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
-                            selectedId === tradition.id ? 'bg-blue-100' : 'hover:bg-gray-50'
-                          }`}
-                          onClick={() => handleTraditionSelect(tradition)}
-                        >
-                          <div className="flex-shrink-0 text-xs text-muted-foreground w-16">
-                            {tradition.firstYear > 0 ? `${tradition.firstYear} CE` : `${Math.abs(tradition.firstYear)} BCE`}
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{tradition.name}</div>
-                            <div className="text-xs text-muted-foreground">{tradition.family}</div>
-                          </div>
-                        </div>
-                      ))}
+                  <CardContent className="flex items-center justify-center h-[500px]">
+                    <div className="text-center">
+                      <div className="text-muted-foreground">
+                        <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-sm">This space is reserved for future features</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
