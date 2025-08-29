@@ -1,11 +1,11 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import MainDashboard from "./pages/MainDashboard";
+import DevVersions from "./pages/DevVersions";
 
 const root = createRoot(document.getElementById("root")!);
 root.render(
   <React.StrictMode>
-    <MainDashboard />
+    <DevVersions />
   </React.StrictMode>
 );

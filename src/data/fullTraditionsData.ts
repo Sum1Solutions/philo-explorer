@@ -3,6 +3,8 @@
  * All 15 traditions with full details, references, and deep dive content
  */
 
+import { christianitySubtraditions } from './christianitySubtraditions';
+
 export type RowKey = 'reality' | 'self' | 'problem' | 'response' | 'aim';
 
 export interface Reference {
@@ -38,6 +40,7 @@ export const ROW_LABELS: Record<RowKey, string> = {
 };
 
 export const DATA: Tradition[] = [
+  ...christianitySubtraditions,
   {
     id: "watts",
     name: "Alan Watts",
