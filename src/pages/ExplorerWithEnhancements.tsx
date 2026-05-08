@@ -39,6 +39,7 @@ import {
 // New Components
 import SurvivorBiasSection from "@/components/SurvivorBiasSection";
 import EvolutionSection from "@/components/EvolutionSection";
+import GlossaryPanel from "@/components/GlossaryPanel";
 import { getTraditionColors } from "@/lib/colorScheme";
 
 // Import complete data from the original Explorer
@@ -355,6 +356,8 @@ const ExplorerWithEnhancements: React.FC = () => {
                 </div>
               )}
             </div>
+
+            <GlossaryPanel />
 
             {/* Horizontal Timeline */}
             <Card className="mb-6">
