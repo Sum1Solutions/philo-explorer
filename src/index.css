@@ -29,3 +29,21 @@ body {
 [data-tooltip-content] {
   z-index: 9999 !important;
 }
+
+#timeline-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+#timeline-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+#timeline-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+#timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
