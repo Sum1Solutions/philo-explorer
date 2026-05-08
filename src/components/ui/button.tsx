@@ -1,7 +1,7 @@
 import * as React from "react";
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "default" | "ghost" | "secondary";
+  variant?: "default" | "ghost" | "secondary" | "outline";
   size?: "sm" | "md" | "lg" | "icon";
 };
 
@@ -11,6 +11,7 @@ export function Button({ className = "", variant = "default", size = "md", ...pr
     default: "bg-black text-white hover:bg-black/90",
     ghost: "bg-transparent hover:bg-black/5",
     secondary: "bg-gray-100 hover:bg-gray-200",
+    outline: "border border-gray-300 bg-white text-gray-900 hover:bg-gray-50",
   };
   const sizes: Record<string, string> = {
     sm: "h-8 px-3",
