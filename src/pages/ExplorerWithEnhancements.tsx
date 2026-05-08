@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Icons
-import { 
-  Search, 
-  BookOpen, 
-  ExternalLink, 
+import {
+  Search,
+  BookOpen,
+  ExternalLink,
   Info,
   X,
   Layers,
@@ -42,15 +42,18 @@ import EvolutionSection from "@/components/EvolutionSection";
 import { getTraditionColors } from "@/lib/colorScheme";
 
 // Import complete data from the original Explorer
-import { 
-  DATA, 
-  ROW_LABELS, 
-  formatYear, 
+import {
+  DATA,
+  ROW_LABELS,
+  formatYear,
   getFamilyExplanation,
-  type Tradition, 
-  type RowKey, 
-  type Reference 
+  type Tradition,
+  type RowKey,
+  type Reference
 } from '@/data/fullTraditionsData';
+
+const MAX_PINNED_TRADITIONS = 4;
+const COMPARISON_KEYS: RowKey[] = ['reality', 'self', 'problem', 'response', 'aim'];
 
 const ExplorerWithEnhancements: React.FC = () => {
   // State management
@@ -60,7 +63,8 @@ const ExplorerWithEnhancements: React.FC = () => {
   const [currentView, setCurrentView] = useState<'main' | 'survivor' | 'evolution'>('main');
   const [selectedFamily, setSelectedFamily] = useState<string>('all');
   const [selectedAspect, setSelectedAspect] = useState<RowKey | null>(null);
-  
+  const [pinnedTraditionIds, setPinnedTraditionIds] = useState<string[]>([]);
+
   // Refs for auto-scrolling
   const traditionsListRef = React.useRef<HTMLDivElement>(null);
   const timelineRef = React.useRef<HTMLDivElement>(null);
@@ -68,61 +72,91 @@ const ExplorerWithEnhancements: React.FC = () => {
   // Get all families for filtering
   const families = useMemo(() => {
     const uniqueFamilies = [...new Set(DATA.map(t => t.family))].sort();
-    return [{ value: 'all', label: 'All Traditions', count: DATA.length }, 
-            ...uniqueFamilies.map(f => ({ 
-              value: f, 
-              label: f, 
-              count: DATA.filter(t => t.family === f).length 
+    return [{ value: 'all', label: 'All Traditions', count: DATA.length },
+            ...uniqueFamilies.map(f => ({
+              value: f,
+              label: f,
+              count: DATA.filter(t => t.family === f).length
             }))];
   }, []);
 
   // Enhanced search with deep content matching
   const filteredData = useMemo(() => {
     let filtered = DATA;
-    
+
     // Apply family filter
     if (selectedFamily !== 'all') {
       filtered = filtered.filter(t => t.family === selectedFamily);
     }
-    
+
     // Apply search filter
     if (query.trim()) {
       const lowerQuery = query.toLowerCase();
-      filtered = filtered.filter(tradition => 
+      filtered = filtered.filter(tradition =>
         tradition.name.toLowerCase().includes(lowerQuery) ||
         tradition.family.toLowerCase().includes(lowerQuery) ||
-        Object.values(tradition.overview).some(text => 
+        Object.values(tradition.overview).some(text =>
           text.toLowerCase().includes(lowerQuery)
         ) ||
-        tradition.deepDive?.keyIdeas.some(idea => 
+        tradition.deepDive?.keyIdeas.some(idea =>
           idea.toLowerCase().includes(lowerQuery)
         ) ||
         tradition.deepDive?.notes?.toLowerCase().includes(lowerQuery) ||
-        tradition.references.some(ref => 
+        tradition.references.some(ref =>
           ref.title.toLowerCase().includes(lowerQuery) ||
           ref.description?.toLowerCase().includes(lowerQuery)
         )
       );
     }
-    
+
     return filtered;
   }, [query, selectedFamily]);
 
   // Timeline data
-  const timeline = useMemo(() => 
+  const timeline = useMemo(() =>
     [...filteredData].sort((a, b) => a.firstYear - b.firstYear),
     [filteredData]
   );
 
-  const selectedTradition = useMemo(() => 
+  const selectedTradition = useMemo(() =>
     DATA.find(t => t.id === selectedId) || null,
     [selectedId]
   );
 
+  const pinnedTraditions = useMemo(() =>
+    pinnedTraditionIds
+      .map(id => DATA.find(tradition => tradition.id === id))
+      .filter((tradition): tradition is Tradition => Boolean(tradition)),
+    [pinnedTraditionIds]
+  );
+
+  const isTraditionPinned = useCallback(
+    (traditionId: string) => pinnedTraditionIds.includes(traditionId),
+    [pinnedTraditionIds]
+  );
+
+  const togglePinnedTradition = useCallback((tradition: Tradition) => {
+    setPinnedTraditionIds(currentIds => {
+      if (currentIds.includes(tradition.id)) {
+        return currentIds.filter(id => id !== tradition.id);
+      }
+
+      if (currentIds.length >= MAX_PINNED_TRADITIONS) {
+        return currentIds;
+      }
+
+      return [...currentIds, tradition.id];
+    });
+  }, []);
+
+  const clearPinnedTraditions = useCallback(() => {
+    setPinnedTraditionIds([]);
+  }, []);
+
   const handleTraditionSelect = useCallback((tradition: Tradition) => {
     setSelectedId(tradition.id);
     setActiveTradition(tradition);
-    
+
     // Auto-scroll the traditions list to move the selected tradition to the top
     setTimeout(() => {
       if (traditionsListRef.current) {
@@ -130,7 +164,7 @@ const ExplorerWithEnhancements: React.FC = () => {
         if (selectedElement) {
           const container = traditionsListRef.current;
           const elementTop = (selectedElement as HTMLElement).offsetTop;
-          
+
           // Scroll to bring the selected element to the top with a small offset
           container.scrollTo({
             top: Math.max(0, elementTop - 20),
@@ -138,7 +172,7 @@ const ExplorerWithEnhancements: React.FC = () => {
           });
         }
       }
-      
+
       // Auto-scroll the timeline to show the selected tradition
       if (timelineRef.current) {
         const selectedElement = timelineRef.current.querySelector(`[data-timeline-id="${tradition.id}"]`);
@@ -148,7 +182,7 @@ const ExplorerWithEnhancements: React.FC = () => {
           const elementWidth = (selectedElement as HTMLElement).offsetWidth;
           const containerWidth = container.offsetWidth;
           const scrollPosition = elementLeft - (containerWidth / 2) + (elementWidth / 2);
-          
+
           container.scrollTo({
             left: scrollPosition,
             behavior: 'smooth'
@@ -186,7 +220,7 @@ const ExplorerWithEnhancements: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-3">
-                Explore major philosophical and religious traditions that have been lost to history, 
+                Explore major philosophical and religious traditions that have been lost to history,
                 demonstrating survivor bias in our understanding of human wisdom.
               </p>
               <div className="flex items-center gap-2">
@@ -194,9 +228,9 @@ const ExplorerWithEnhancements: React.FC = () => {
                   <span className="font-medium">Examples:</span> Manichaeism, Catharism, Celtic Druidism
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="mt-3 w-full"
                 onClick={() => setCurrentView('survivor')}
               >
@@ -217,7 +251,7 @@ const ExplorerWithEnhancements: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-3">
-                Track how core philosophical concepts like reality, self, and meaning 
+                Track how core philosophical concepts like reality, self, and meaning
                 have evolved across 100,000 years of human thought.
               </p>
               <div className="flex items-center gap-2">
@@ -225,9 +259,9 @@ const ExplorerWithEnhancements: React.FC = () => {
                   <span className="font-medium">Trace:</span> Animism → Monotheism → Scientific materialism
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="mt-3 w-full"
                 onClick={() => setCurrentView('evolution')}
               >
@@ -241,8 +275,8 @@ const ExplorerWithEnhancements: React.FC = () => {
         {/* Navigation */}
         {currentView !== 'main' && (
           <div className="mb-6">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => setCurrentView('main')}
               className="flex items-center gap-1"
@@ -277,7 +311,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                     className="pl-10"
                   />
                 </div>
-                
+
                 {/* Family Filter */}
                 <div className="flex flex-wrap gap-2">
                   {families.map(family => (
@@ -296,11 +330,11 @@ const ExplorerWithEnhancements: React.FC = () => {
                   ))}
                 </div>
               </div>
-              
+
               {(query || selectedFamily !== 'all') && (
                 <div className="flex items-center gap-4">
                   <p className="text-sm text-muted-foreground">
-                    {filteredData.length} tradition{filteredData.length !== 1 ? 's' : ''} 
+                    {filteredData.length} tradition{filteredData.length !== 1 ? 's' : ''}
                     {query && ` matching "${query}"`}
                     {selectedFamily !== 'all' && ` in ${selectedFamily}`}
                   </p>
@@ -340,7 +374,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="relative">
-                <button 
+                <button
                   onClick={() => {
                     const timeline = document.getElementById('timeline-scroll');
                     if (timeline) timeline.scrollBy({ left: -200, behavior: 'smooth' });
@@ -349,7 +383,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const timeline = document.getElementById('timeline-scroll');
                     if (timeline) timeline.scrollBy({ left: 200, behavior: 'smooth' });
@@ -358,8 +392,8 @@ const ExplorerWithEnhancements: React.FC = () => {
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
-                <div id="timeline-scroll" className="flex gap-3 overflow-x-auto pb-3 px-12 scroll-smooth" 
-                     style={{ 
+                <div id="timeline-scroll" className="flex gap-3 overflow-x-auto pb-3 px-12 scroll-smooth"
+                     style={{
                        scrollbarWidth: 'thin',
                        scrollbarColor: '#cbd5e1 #f1f5f9'
                      }}>
@@ -373,14 +407,14 @@ const ExplorerWithEnhancements: React.FC = () => {
                     };
                     const colors = familyColors[tradition.family as keyof typeof familyColors] || 'bg-gray-500 border-gray-300 hover:bg-gray-50';
                     const [bgColor, borderColor, hoverColor] = colors.split(' ');
-                    
+
                     return (
                       <button
                         key={tradition.id}
                         data-timeline-id={tradition.id}
                         className={`flex-shrink-0 p-3 rounded-lg border-2 transition-all min-w-[140px] ${
-                          selectedId === tradition.id 
-                            ? `${bgColor.replace('500', '100')} ${borderColor} shadow-lg scale-105 ring-2 ring-offset-2` 
+                          selectedId === tradition.id
+                            ? `${bgColor.replace('500', '100')} ${borderColor} shadow-lg scale-105 ring-2 ring-offset-2`
                             : `${hoverColor} border-gray-200 hover:border-gray-300`
                         }`}
                         onClick={() => handleTraditionSelect(tradition)}
@@ -422,11 +456,11 @@ const ExplorerWithEnhancements: React.FC = () => {
                           className={`cursor-pointer transition-all hover:shadow-md border-l-4 ${
                             selectedId === tradition.id ? 'ring-2 shadow-lg transform scale-[1.02] bg-blue-50' : ''
                           }`}
-                          style={{ 
+                          style={{
                             borderLeftColor: colors.primary,
-                            ...(selectedId === tradition.id ? { 
+                            ...(selectedId === tradition.id ? {
                               '--tw-ring-color': colors.primary,
-                              backgroundColor: colors.bgLight 
+                              backgroundColor: colors.bgLight
                             } : {})
                           }}
                           onClick={() => handleTraditionSelect(tradition)}
@@ -434,23 +468,37 @@ const ExplorerWithEnhancements: React.FC = () => {
                           <CardContent className="p-4">
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                <div 
+                                <div
                                   className="w-3 h-3 rounded-full"
                                   style={{ backgroundColor: colors.primary }}
                                 />
                                 <h3 className="font-semibold text-sm">{tradition.name}</h3>
                               </div>
-                              <Badge 
-                                variant="outline" 
-                                className="text-xs"
-                                style={{ 
-                                  borderColor: colors.border,
-                                  backgroundColor: colors.bg,
-                                  color: colors.accent
-                                }}
-                              >
-                                {tradition.family}
-                              </Badge>
+                              <div className="flex flex-col items-end gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs"
+                                  style={{
+                                    borderColor: colors.border,
+                                    backgroundColor: colors.bg,
+                                    color: colors.accent
+                                  }}
+                                >
+                                  {tradition.family}
+                                </Badge>
+                                <Button
+                                  variant={isTraditionPinned(tradition.id) ? 'default' : 'outline'}
+                                  size="sm"
+                                  disabled={!isTraditionPinned(tradition.id) && pinnedTraditions.length >= MAX_PINNED_TRADITIONS}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    togglePinnedTradition(tradition);
+                                  }}
+                                  className="h-7 px-2 text-xs"
+                                >
+                                  {isTraditionPinned(tradition.id) ? 'Pinned' : 'Pin'}
+                                </Button>
+                              </div>
                             </div>
                             <p className="text-xs text-muted-foreground mb-2">
                               Founded: {formatYear(tradition.firstYear)}
@@ -461,9 +509,9 @@ const ExplorerWithEnhancements: React.FC = () => {
                             {tradition.deepDive?.keyIdeas && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {tradition.deepDive.keyIdeas.slice(0, 2).map((idea, idx) => (
-                                  <Badge 
-                                    key={idx} 
-                                    variant="secondary" 
+                                  <Badge
+                                    key={idx}
+                                    variant="secondary"
                                     className="text-[10px] px-1 py-0"
                                   >
                                     {idea.length > 20 ? `${idea.substring(0, 20)}...` : idea}
@@ -489,17 +537,28 @@ const ExplorerWithEnhancements: React.FC = () => {
                 {selectedTradition ? (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <div 
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: getTraditionColors(selectedTradition.id).primary }}
-                        />
-                        {selectedTradition.name}
+                      <CardTitle className="flex items-start justify-between gap-3">
+                        <span className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded-full"
+                            style={{ backgroundColor: getTraditionColors(selectedTradition.id).primary }}
+                          />
+                          {selectedTradition.name}
+                        </span>
+                        <Button
+                          variant={isTraditionPinned(selectedTradition.id) ? 'default' : 'outline'}
+                          size="sm"
+                          disabled={!isTraditionPinned(selectedTradition.id) && pinnedTraditions.length >= MAX_PINNED_TRADITIONS}
+                          onClick={() => togglePinnedTradition(selectedTradition)}
+                          className="h-7 px-2 text-xs"
+                        >
+                          {isTraditionPinned(selectedTradition.id) ? 'Pinned' : 'Pin to compare'}
+                        </Button>
                       </CardTitle>
                       <div className="flex items-center gap-4 text-sm">
-                        <Badge 
+                        <Badge
                           variant="outline"
-                          style={{ 
+                          style={{
                             borderColor: getTraditionColors(selectedTradition.id).border,
                             backgroundColor: getTraditionColors(selectedTradition.id).bg,
                             color: getTraditionColors(selectedTradition.id).accent
@@ -519,7 +578,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                           <TabsTrigger value="deep">Deep Dive</TabsTrigger>
                           <TabsTrigger value="references">References</TabsTrigger>
                         </TabsList>
-                        
+
                         <TabsContent value="overview" className="space-y-4">
                           {Object.entries(ROW_LABELS).map(([key, label]) => (
                             <div key={key} className="space-y-2">
@@ -537,7 +596,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                             </div>
                           ))}
                         </TabsContent>
-                        
+
                         <TabsContent value="deep" className="space-y-4">
                           {selectedTradition.deepDive ? (
                             <>
@@ -557,7 +616,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                                   </ul>
                                 </div>
                               )}
-                              
+
                               {selectedTradition.deepDive.notes && (
                                 <div>
                                   <h4 className="font-medium text-sm mb-2 flex items-center gap-1">
@@ -579,7 +638,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                             </div>
                           )}
                         </TabsContent>
-                        
+
                         <TabsContent value="references" className="space-y-3">
                           {selectedTradition.references.map((ref, idx) => {
                             const getIcon = (type?: string) => {
@@ -590,15 +649,15 @@ const ExplorerWithEnhancements: React.FC = () => {
                                 default: return <Globe className="h-3 w-3" />;
                               }
                             };
-                            
+
                             return (
                               <div key={idx} className="p-3 rounded border">
                                 <div className="flex items-start gap-2">
                                   {getIcon(ref.type)}
                                   <div className="flex-1">
-                                    <a 
-                                      href={ref.url} 
-                                      target="_blank" 
+                                    <a
+                                      href={ref.url}
+                                      target="_blank"
                                       rel="noopener noreferrer"
                                       className="text-sm font-medium hover:underline flex items-center gap-1"
                                     >
@@ -637,22 +696,100 @@ const ExplorerWithEnhancements: React.FC = () => {
                 )}
               </div>
 
-              {/* Right Panel: Future Content */}
+              {/* Right Panel: Pin-and-Compare */}
               <div className="lg:col-span-1">
                 <Card className="h-full">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Layers className="h-4 w-4" />
-                      Coming Soon
+                    <CardTitle className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2">
+                        <Layers className="h-4 w-4" />
+                        Compare ({pinnedTraditions.length}/{MAX_PINNED_TRADITIONS})
+                      </span>
+                      {pinnedTraditions.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearPinnedTraditions}
+                          className="h-7 px-2 text-xs"
+                        >
+                          Clear
+                        </Button>
+                      )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex items-center justify-center h-[500px]">
-                    <div className="text-center">
-                      <div className="text-muted-foreground">
-                        <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p className="text-sm">This space is reserved for future features</p>
+                  <CardContent className="space-y-4">
+                    {pinnedTraditions.length === 0 ? (
+                      <div className="flex min-h-[500px] items-center justify-center text-center">
+                        <div className="text-muted-foreground">
+                          <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p className="text-sm font-medium text-foreground">Pin traditions to compare them.</p>
+                          <p className="mt-2 text-xs">
+                            Use the Pin buttons on tradition cards or the detail panel to compare up to four traditions across the five core aspects.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          {pinnedTraditions.map((tradition) => {
+                            const colors = getTraditionColors(tradition.id);
+                            return (
+                              <Badge
+                                key={tradition.id}
+                                variant="outline"
+                                className="flex items-center gap-1 pr-1"
+                                style={{
+                                  borderColor: colors.border,
+                                  backgroundColor: colors.bg,
+                                  color: colors.accent
+                                }}
+                              >
+                                {tradition.name}
+                                <button
+                                  type="button"
+                                  aria-label={`Remove ${tradition.name} from comparison`}
+                                  onClick={() => togglePinnedTradition(tradition)}
+                                  className="rounded-sm p-0.5 hover:bg-black/10"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            );
+                          })}
+                        </div>
+
+                        <div className="max-h-[560px] overflow-auto rounded-lg border">
+                          <table className="min-w-full divide-y text-left text-sm">
+                            <thead className="sticky top-0 bg-white">
+                              <tr>
+                                <th className="w-28 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Aspect
+                                </th>
+                                {pinnedTraditions.map((tradition) => (
+                                  <th key={tradition.id} className="min-w-[180px] px-3 py-2 text-xs font-semibold">
+                                    {tradition.name}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {COMPARISON_KEYS.map((key) => (
+                                <tr key={key} className="align-top">
+                                  <th className="bg-slate-50 px-3 py-3 text-xs font-semibold text-slate-700">
+                                    {ROW_LABELS[key]}
+                                  </th>
+                                  {pinnedTraditions.map((tradition) => (
+                                    <td key={`${tradition.id}-${key}`} className="px-3 py-3 text-xs leading-relaxed text-muted-foreground">
+                                      {tradition.overview[key]}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </div>

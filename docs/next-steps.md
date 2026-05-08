@@ -128,7 +128,7 @@ Connect lost traditions to surviving or later movements when there is a meaningf
 
 If you want the fastest functional improvement, implement these in order:
 
-1. **Pin-and-compare tray** – most immediately useful for students.
+1. **Pin-and-compare tray** – implemented as the first functional follow-up; next iteration should add export/share options.
 2. **Glossary data file and tooltip integration** – improves accessibility and comprehension.
 3. **Reference metadata normalization** – improves trust and prepares for research workflows.
 4. **Schema checks for tradition data** – prevents regressions while content grows.
