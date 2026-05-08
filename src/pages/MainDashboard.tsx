@@ -11,19 +11,13 @@ import {
   BookOpen, 
   Skull, 
   TrendingUp,
-  Users,
-  Globe,
-  Calendar,
   ArrowRight,
   ChevronLeft,
   Lightbulb,
   History,
   Library,
   Compass,
-  Timeline,
-  Scroll,
-  Mountain,
-  TreePine
+  Mountain
 } from 'lucide-react';
 
 // Import our components
@@ -45,7 +39,7 @@ const MainDashboard: React.FC = () => {
       key: 'wisdom' as ViewType,
       title: 'Wisdom Explorer',
       subtitle: 'Explore Living Traditions',
-      description: 'Discover and compare 15 major philosophical and religious traditions from around the world. From ancient Buddhism to modern Existentialism.',
+      description: 'Discover and compare major philosophical and religious traditions from around the world. From ancient Buddhism to modern Existentialism.',
       icon: Library,
       color: 'blue',
       stats: [
@@ -86,7 +80,7 @@ const MainDashboard: React.FC = () => {
       title: 'Evolution of Ideas',
       subtitle: 'Ideas Through Time',
       description: 'Track how core philosophical concepts like reality, self, and meaning have evolved across 100,000 years of human thought.',
-      icon: Timeline,
+      icon: TrendingUp,
       color: 'purple',
       stats: [
         { label: 'Years Tracked', value: '100k+' },
@@ -101,6 +95,34 @@ const MainDashboard: React.FC = () => {
       accentColor: 'text-purple-600',
       iconBg: 'bg-purple-100'
     }
+  ];
+
+
+  const productDirection = [
+    {
+      icon: Compass,
+      title: 'Concept map, not just a catalog',
+      description: 'The strongest thread is a guided map of how traditions answer recurring human questions about reality, selfhood, suffering, practice, and flourishing.'
+    },
+    {
+      icon: Skull,
+      title: 'Survivor-bias lens',
+      description: 'The lost-traditions area reframes the project from “greatest hits” history into a critical tool about power, preservation, and forgotten alternatives.'
+    },
+    {
+      icon: History,
+      title: 'Historical development engine',
+      description: 'The evolution view points toward showing influence, divergence, and recurring patterns across time instead of isolated summaries.'
+    }
+  ];
+
+  const enhancementAreas = [
+    'Add guided learning paths for students and teachers with prompts, checkpoints, and short classroom activities.',
+    'Add side-by-side compare mode where users can pin 2–4 traditions and export a comparison table.',
+    'Add source-quality metadata, citation filters, and notes on contested dates or scholarly uncertainty.',
+    'Add visual influence links between traditions, extinct movements, and modern descendants.',
+    'Add glossary and accessibility refinements for terms such as BCE, nonduality, dharma, covenant, and anatta.',
+    'Add persistence for saved traditions, recently viewed cards, and shareable deep links.'
   ];
 
   const currentTile = tiles.find(t => t.key === currentView);
@@ -202,7 +224,7 @@ const MainDashboard: React.FC = () => {
                     <CardTitle className="text-xl">{tile.title}</CardTitle>
                   </div>
                   <CardDescription className="text-sm">
-                    {tile.key === 'wisdom' ? 'Compare 15 philosophical and religious traditions' :
+                    {tile.key === 'wisdom' ? `Compare ${DATA.length} philosophical and religious traditions` :
                      tile.key === 'survivor' ? 'Explore traditions lost to history' :
                      'Track how ideas evolved over time'}
                   </CardDescription>
@@ -238,6 +260,56 @@ const MainDashboard: React.FC = () => {
               </Card>
             );
           })}
+        </div>
+
+        {/* Product Evaluation */}
+        <div className="grid lg:grid-cols-2 gap-8 mb-16">
+          <Card className="border-blue-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-blue-600" />
+                Where this is going
+              </CardTitle>
+              <CardDescription>
+                The app is becoming an educational thinking tool: part explorer, part timeline, part critical-history companion.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {productDirection.map(({ icon: Icon, title, description }) => (
+                <div key={title} className="flex gap-3">
+                  <div className="mt-1 rounded-full bg-blue-50 p-2">
+                    <Icon className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold">{title}</h3>
+                    <p className="text-sm text-gray-600">{description}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Compass className="h-5 w-5 text-amber-600" />
+                Highest-value enhancements
+              </CardTitle>
+              <CardDescription>
+                These additions would make the project more functional for learning, research, and classroom use.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                {enhancementAreas.map((area) => (
+                  <li key={area} className="flex items-start gap-2 text-sm text-gray-700">
+                    <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                    <span>{area}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Simple Footer */}

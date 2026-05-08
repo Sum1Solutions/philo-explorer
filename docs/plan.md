@@ -1,6 +1,6 @@
 # Philo Explorer – Engineering Plan
 
-Last updated: 2025-08-15 06:23 EDT
+Last updated: 2026-05-08
 
 ## 1) Project structure, dependencies, documentation
 
@@ -69,6 +69,7 @@ Last updated: 2025-08-15 06:23 EDT
 
 ## 5) Next steps
 
+- __Product roadmap__: See `docs/next-steps.md` for the recommended phased feature roadmap.
 - __Run locally__: `npm install && npm run dev` (Vite, likely on 5173)
 - __Add tests__: Vitest + RTL baseline smoke tests
 - __Refactor__: Extract components and data modules
