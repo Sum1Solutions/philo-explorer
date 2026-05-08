@@ -397,22 +397,7 @@ const ExplorerWithEnhancements: React.FC = () => {
                     );
                   })}
                 </div>
-                <style jsx>{`
-                  div::-webkit-scrollbar {
-                    height: 8px;
-                  }
-                  div::-webkit-scrollbar-track {
-                    background: #f1f5f9;
-                    border-radius: 4px;
-                  }
-                  div::-webkit-scrollbar-thumb {
-                    background: #cbd5e1;
-                    border-radius: 4px;
-                  }
-                  div::-webkit-scrollbar-thumb:hover {
-                    background: #94a3b8;
-                  }
-                `}</style>
+
               </CardContent>
             </Card>
 
