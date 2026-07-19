@@ -1,6 +1,6 @@
 import * as React from "react";
 
-type BadgeVariant = "default" | "outline" | "secondary";
+type BadgeVariant = "default" | "outline" | "secondary" | "destructive";
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -15,6 +15,7 @@ export function Badge({
     default: "bg-primary text-primary-foreground hover:bg-primary/80 border-transparent",
     outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 border-transparent",
+    destructive: "bg-red-100 text-red-700 border-red-200",
   };
 
   return (
