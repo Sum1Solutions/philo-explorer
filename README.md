@@ -1,3 +1,5 @@
+> **2026-11-26:** Source-available learning prototype, distinct from TempleAnyone / philosophical-explorer. The README live URL below is historical and did not resolve on 2026-11-26. No public deployment is asserted. Default entry is MainDashboard; DevVersions remains a development artifact. Run npm ci --ignore-scripts, npm run typecheck, npm run build. Historical factual claims below remain subject to source review. See [WEB_INTEGRATION_2026-11-26.md](WEB_INTEGRATION_2026-11-26.md).
+
 # Philosophy & Religion Explorer
 
 🌍 **Educational Philosophy Learning Platform** - An interactive explorer designed to help students compare philosophical and religious traditions from around the world, with a focus on understanding their perspectives on life's biggest questions.

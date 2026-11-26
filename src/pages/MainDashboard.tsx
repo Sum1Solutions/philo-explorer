@@ -7,9 +7,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  BookOpen, 
-  Skull, 
+import {
+  BookOpen,
+  Skull,
   TrendingUp,
   ArrowRight,
   ChevronLeft,
@@ -45,7 +45,7 @@ const MainDashboard: React.FC = () => {
       stats: [
         { label: 'Traditions', value: DATA.length },
         { label: 'Families', value: [...new Set(DATA.map(t => t.family))].length },
-        { label: 'Years Span', value: '12,000+' },
+
       ],
       highlights: ['Interactive timeline', 'Deep dive content', 'Academic references'],
       gradientFrom: 'from-blue-500',
@@ -57,15 +57,15 @@ const MainDashboard: React.FC = () => {
     },
     {
       key: 'survivor' as ViewType,
-      title: 'Lost Traditions',
-      subtitle: 'Understanding Survivor Bias',
-      description: 'Explore 20+ major philosophical and religious traditions that have been lost to history. Learn why certain ideas survive while others disappear.',
+      title: 'Historical Traditions',
+      subtitle: 'Preservation and survival',
+      description: 'Explore draft accounts of preservation, suppression, and continuity. Some lineages persist or are revived; these categories need review.',
       icon: Mountain,
       color: 'red',
       stats: [
-        { label: 'Lost Traditions', value: `${extinctTraditions.length}+` },
-        { label: 'Peak Adherents', value: '200M+' },
-        { label: 'Continents', value: 6 },
+        { label: 'Draft entries', value: extinctTraditions.length },
+
+
       ],
       highlights: ['Political suppression', 'Cultural dominance', 'Critical analysis'],
       gradientFrom: 'from-red-500',
@@ -79,11 +79,11 @@ const MainDashboard: React.FC = () => {
       key: 'evolution' as ViewType,
       title: 'Evolution of Ideas',
       subtitle: 'Ideas Through Time',
-      description: 'Track how core philosophical concepts like reality, self, and meaning have evolved across 100,000 years of human thought.',
+      description: 'Explore a draft account of changing ideas about reality, self, and meaning. The proposed connections need historical evidence.',
       icon: TrendingUp,
       color: 'purple',
       stats: [
-        { label: 'Years Tracked', value: '100k+' },
+
         { label: 'Time Periods', value: evolutionPeriods.length },
         { label: 'Core Aspects', value: 5 },
       ],
@@ -97,33 +97,6 @@ const MainDashboard: React.FC = () => {
     }
   ];
 
-
-  const productDirection = [
-    {
-      icon: Compass,
-      title: 'Concept map, not just a catalog',
-      description: 'The strongest thread is a guided map of how traditions answer recurring human questions about reality, selfhood, suffering, practice, and flourishing.'
-    },
-    {
-      icon: Skull,
-      title: 'Survivor-bias lens',
-      description: 'The lost-traditions area reframes the project from “greatest hits” history into a critical tool about power, preservation, and forgotten alternatives.'
-    },
-    {
-      icon: History,
-      title: 'Historical development engine',
-      description: 'The evolution view points toward showing influence, divergence, and recurring patterns across time instead of isolated summaries.'
-    }
-  ];
-
-  const enhancementAreas = [
-    'Add guided learning paths for students and teachers with prompts, checkpoints, and short classroom activities.',
-    'Add side-by-side compare mode where users can pin 2–4 traditions and export a comparison table.',
-    'Add source-quality metadata, citation filters, and notes on contested dates or scholarly uncertainty.',
-    'Add visual influence links between traditions, extinct movements, and modern descendants.',
-    'Add glossary and accessibility refinements for terms such as BCE, nonduality, dharma, covenant, and anatta.',
-    'Add persistence for saved traditions, recently viewed cards, and shareable deep links.'
-  ];
 
   const currentTile = tiles.find(t => t.key === currentView);
 
@@ -156,8 +129,8 @@ const MainDashboard: React.FC = () => {
           <div className="container max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="sm"
                   onClick={() => setCurrentView('dashboard')}
                   className="flex items-center gap-2"
@@ -181,6 +154,7 @@ const MainDashboard: React.FC = () => {
         </div>
 
         {/* Content */}
+        <p className="container max-w-7xl mx-auto px-6 py-4 text-sm">Draft educational material. Dates, categories, and claims about continuity need source review.</p>
         {renderContent()}
       </div>
     );
@@ -188,16 +162,18 @@ const MainDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <nav aria-label="Project links" className="container mx-auto px-6 py-4 flex flex-wrap gap-6"><a href="https://sum1solutions.com/work/philosophy">About the two explorers</a><a href="https://templeanyone.com">Open the live TempleAnyone explorer</a><a href="https://github.com/Sum1Solutions/philo-explorer">Source repository</a></nav>
+      <p className="container mx-auto px-6 text-sm font-semibold">Experimental prototype · Historical accuracy and learning outcomes are unverified</p>
       {/* Header */}
       <div className="border-b bg-white">
         <div className="container max-w-7xl mx-auto px-6 py-12">
           <div className="text-center space-y-6">
             <BookOpen className="w-12 h-12 mx-auto text-gray-600" />
             <h1 className="text-4xl font-bold text-gray-900">
-              Philosophy & Religion Explorer
+              Philo Explorer
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Explore philosophical and religious traditions from around the world.
+              An experimental map of traditions, historical survival, and how ideas change. Summaries, dates, and classifications need source review.
             </p>
           </div>
         </div>
@@ -210,10 +186,9 @@ const MainDashboard: React.FC = () => {
           {tiles.map((tile) => {
             const IconComponent = tile.icon;
             return (
-              <Card 
+              <Card
                 key={tile.key}
-                className="group cursor-pointer transition-all hover:shadow-lg border hover:border-gray-300"
-                onClick={() => setCurrentView(tile.key)}
+                className="group transition-all hover:shadow-lg border hover:border-gray-300"
               >
                 <CardHeader className="pb-4">
                   {/* Visual header with larger icon */}
@@ -225,7 +200,7 @@ const MainDashboard: React.FC = () => {
                   </div>
                   <CardDescription className="text-sm">
                     {tile.key === 'wisdom' ? `Compare ${DATA.length} philosophical and religious traditions` :
-                     tile.key === 'survivor' ? 'Explore traditions lost to history' :
+                     tile.key === 'survivor' ? 'Examine preservation, change, and continuity' :
                      'Track how ideas evolved over time'}
                   </CardDescription>
                 </CardHeader>
@@ -243,9 +218,9 @@ const MainDashboard: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                  
+
                   {/* Action Button */}
-                  <Button 
+                  <Button
                     variant="outline"
                     className="w-full group-hover:bg-gray-50"
                     onClick={(e) => {
@@ -253,63 +228,13 @@ const MainDashboard: React.FC = () => {
                       setCurrentView(tile.key);
                     }}
                   >
-                    Explore
+                    Explore {tile.title}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardContent>
               </Card>
             );
           })}
-        </div>
-
-        {/* Product Evaluation */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-16">
-          <Card className="border-blue-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-blue-600" />
-                Where this is going
-              </CardTitle>
-              <CardDescription>
-                The app is becoming an educational thinking tool: part explorer, part timeline, part critical-history companion.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {productDirection.map(({ icon: Icon, title, description }) => (
-                <div key={title} className="flex gap-3">
-                  <div className="mt-1 rounded-full bg-blue-50 p-2">
-                    <Icon className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold">{title}</h3>
-                    <p className="text-sm text-gray-600">{description}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-amber-100">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Compass className="h-5 w-5 text-amber-600" />
-                Highest-value enhancements
-              </CardTitle>
-              <CardDescription>
-                These additions would make the project more functional for learning, research, and classroom use.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {enhancementAreas.map((area) => (
-                  <li key={area} className="flex items-start gap-2 text-sm text-gray-700">
-                    <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-                    <span>{area}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Simple Footer */}

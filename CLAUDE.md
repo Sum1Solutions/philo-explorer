@@ -1,3 +1,5 @@
+> **2026-11-26:** Current entry is `src/pages/MainDashboard.tsx` via `src/main.tsx`; public role is an experimental prototype, not a verified live product. See WEB_INTEGRATION_2026-11-26.md. Older architecture notes below are historical.
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
