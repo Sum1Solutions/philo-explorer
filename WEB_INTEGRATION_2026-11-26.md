@@ -34,3 +34,15 @@ Dependency install audits still report legacy findings (Temple 60 total includin
 A source-by-source scholarly review is still needed: dates and movements, intra-tradition diversity, broad categories, source mappings, translations, and claims about historical disappearance/influence. The corpus was not rewritten wholesale. Next product evidence should come from a reader completing a comparison and checking its source, with the stumbling points recorded.
 
 Deployment receipts and live verification are appended after publication.
+
+## Observed release receipts
+
+- TempleAnyone: source 12cd301, production main, https://4c850fe9.philosophical-explorer.pages.dev. Served HTML, JS and CSS SHA-256 hashes match the reviewed local build. Mock debate/validation/quality-score strings are absent from the live bundle.
+- Company: source ba6c3c9, production main, https://b9a4e4d1.sum1solutions-com.pages.dev. Philosophy page and directory HTML match the build; both project identities and links match the public registry.
+- HAAPL: source f528fc4, production master, https://fe9eb8c8.haapl-com.pages.dev. All three public assets match source.
+- Philo prototype: source fdac1b8 pushed to existing main; no deployment created.
+- All eight live verification groups passed, including the actual monitor rules for TempleAnyone, HAAPL and both company pages. Only GET requests; no manual monitor run, chat, form, or notification.
+
+GitHub pushes also reported legacy dependency alerts. Those backlog totals differ from the installation audit; neither constitutes a completed triage.
+
+QA source 07abb4e deployed as Worker 38abf0c4-6946-4b49-8145-027d99ecc51e, with existing bindings and all five schedules retained.
